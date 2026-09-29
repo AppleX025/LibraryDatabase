@@ -35,6 +35,51 @@ CREATE TABLE BookAuthor(
     FOREIGN KEY(Author_id) REFERENCES Author(Author_id)
 );
 
+CREATE TABLE Book (
+    Item_id INT NOT NULL,
+    Isbn VARCHAR(13) UNIQUE,
+    Genre VARCHAR(50),
+    PRIMARY KEY (Item_id),
+    CONSTRAINT fk_book_catalogitem
+        FOREIGN KEY (Item_id) REFERENCES CatalogItem(Item_id),
+    CONSTRAINT chk_book_isbn
+        CHECK (
+            Isbn IS NULL
+            OR Isbn REGEXP '^[0-9]{13}$'
+            OR Isbn REGEXP '^[0-9]{9}[0-9Xx]$'
+        )
+);
+
+CREATE TABLE Videogame (
+    Item_id INT NOT NULL,
+    Platform VARCHAR(30),
+    Developer VARCHAR(100),
+    Esrb_rating VARCHAR(10),
+    PRIMARY KEY (Item_id),
+    CONSTRAINT fk_videogame_catalogitem
+        FOREIGN KEY (Item_id) REFERENCES CatalogItem(Item_id)
+);
+
+CREATE TABLE BoardGame (
+    Item_id INT NOT NULL,
+    Min_players SMALLINT,
+    Max_players SMALLINT,
+    Designer VARCHAR(100),
+    PRIMARY KEY (Item_id),
+    CONSTRAINT fk_boardgame_catalogitem
+        FOREIGN KEY (Item_id) REFERENCES CatalogItem(Item_id),
+    CONSTRAINT chk_boardgame_min_players
+        CHECK (Min_players IS NULL OR Min_players > 0),
+    CONSTRAINT chk_boardgame_max_players
+        CHECK (Max_players IS NULL OR Max_players > 0),
+    CONSTRAINT chk_boardgame_player_range
+        CHECK (
+            Min_players IS NULL
+            OR Max_players IS NULL
+            OR Max_players >= Min_players
+        )
+);
+
 CREATE TABLE DVD (
     Item_id INT NOT NULL,
     Runtime_minutes SMALLINT,
