@@ -50,7 +50,7 @@ DROP TABLE IF EXISTS `boardgame`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `boardgame` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'boardgame',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Min_players` smallint DEFAULT NULL,
   `Max_players` smallint DEFAULT NULL,
   `Designer` varchar(100) DEFAULT NULL,
@@ -82,7 +82,7 @@ DROP TABLE IF EXISTS `book`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `book` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'book',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Isbn` varchar(13) DEFAULT NULL,
   `Genre` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`Item_id`),
@@ -202,7 +202,7 @@ DROP TABLE IF EXISTS `dvd`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `dvd` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'dvd',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Runtime_minutes` smallint DEFAULT NULL,
   `Director` varchar(100) DEFAULT NULL,
   `Mpaa_rating` varchar(10) DEFAULT NULL,
@@ -433,7 +433,7 @@ DROP TABLE IF EXISTS `music`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `music` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'music',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Artist` varchar(100) DEFAULT NULL,
   `Track_count` smallint DEFAULT NULL,
   PRIMARY KEY (`Item_id`),
@@ -461,7 +461,7 @@ DROP TABLE IF EXISTS `newspaper`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `newspaper` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'newspaper',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Newspaper_name` varchar(100) NOT NULL,
   `Issue_date` date NOT NULL,
   `Edition` varchar(30) NOT NULL DEFAULT '',
@@ -574,7 +574,7 @@ DROP TABLE IF EXISTS `researchpaper`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `researchpaper` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'researchpaper',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Doi` varchar(100) DEFAULT NULL,
   `Journal_name` varchar(150) DEFAULT NULL,
   `Volume` varchar(20) DEFAULT NULL,
@@ -639,7 +639,7 @@ DROP TABLE IF EXISTS `videogame`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `videogame` (
   `Item_id` int NOT NULL,
-  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL DEFAULT 'videogame',
+  `Item_type` enum('book','videogame','boardgame','dvd','music','newspaper','researchpaper') NOT NULL,
   `Platform` varchar(30) DEFAULT NULL,
   `Developer` varchar(100) DEFAULT NULL,
   `Esrb_rating` varchar(10) DEFAULT NULL,
@@ -668,4 +668,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-01 13:12:55
+-- Dump completed on 2026-10-01 20:35:15

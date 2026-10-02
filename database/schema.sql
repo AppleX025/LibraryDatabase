@@ -136,7 +136,7 @@ CREATE TABLE CatalogItem (
 CREATE TABLE Book (
     Item_id INT NOT NULL,
     Item_type ENUM('book', 'videogame','boardgame','dvd','music','newspaper','researchpaper') 
-              NOT NULL DEFAULT 'book',
+              NOT NULL,
     Isbn VARCHAR(13) NULL,
     Genre VARCHAR(50) NULL,
     PRIMARY KEY (Item_id),
@@ -169,7 +169,7 @@ CREATE TABLE BookAuthor(
 CREATE TABLE Videogame (
     Item_id INT NOT NULL,
     Item_type ENUM('book', 'videogame','boardgame','dvd','music','newspaper','researchpaper') 
-              NOT NULL DEFAULT 'videogame',
+              NOT NULL,
     Platform    VARCHAR(30)  NULL,
     Developer   VARCHAR(100) NULL,
     Esrb_rating VARCHAR(10)  NULL,
@@ -185,7 +185,7 @@ CREATE TABLE Videogame (
 CREATE TABLE BoardGame (
     Item_id     INT NOT NULL,
     Item_type   ENUM('book','videogame','boardgame','dvd','music','newspaper','researchpaper')
-                NOT NULL DEFAULT 'boardgame',
+                NOT NULL ,
     Min_players SMALLINT NULL,
     Max_players SMALLINT NULL,
     Designer    VARCHAR(100) NULL,
@@ -207,7 +207,7 @@ CREATE TABLE BoardGame (
 CREATE TABLE DVD (
     Item_id         INT NOT NULL,
     Item_type       ENUM('book','videogame','boardgame','dvd','music','newspaper','researchpaper')
-                    NOT NULL DEFAULT 'dvd',
+                    NOT NULL,
     Runtime_minutes SMALLINT NULL,
     Director        VARCHAR(100) NULL,
     Mpaa_rating     VARCHAR(10) NULL,
@@ -225,7 +225,7 @@ CREATE TABLE DVD (
 CREATE TABLE Music (
     Item_id     INT NOT NULL,
     Item_type   ENUM('book','videogame','boardgame','dvd','music','newspaper','researchpaper')
-                NOT NULL DEFAULT 'music',
+                NOT NULL    ,
     Artist      VARCHAR(100) NULL,
     Track_count SMALLINT NULL,
 
@@ -242,7 +242,7 @@ CREATE TABLE Music (
 CREATE TABLE Newspaper (
     Item_id        INT NOT NULL,
     Item_type      ENUM('book','videogame','boardgame','dvd','music','newspaper','researchpaper')
-                   NOT NULL DEFAULT 'newspaper',
+                   NOT NULL,
     Newspaper_name VARCHAR(100) NOT NULL,            -- e.g. the paper's name
     Issue_date     DATE NOT NULL,                    -- which day's issue this is
     Edition        VARCHAR(30) NOT NULL DEFAULT '',  -- empty = the only edition (not NULL, so duplicates are caught)
@@ -265,7 +265,7 @@ CREATE TABLE Newspaper (
 CREATE TABLE ResearchPaper (
     Item_id      INT NOT NULL,
     Item_type    ENUM('book','videogame','boardgame','dvd','music','newspaper','researchpaper')
-                 NOT NULL DEFAULT 'researchpaper',
+                 NOT NULL,
     Doi          VARCHAR(100) NULL,                  -- optional, unique when present
     Journal_name VARCHAR(150) NULL,
     Volume       VARCHAR(20) NULL,
