@@ -72,6 +72,7 @@ app.use(express.static('public'));
 // Mounts all routes defined in routes/auth.js at the root path.
 // This is where login, register, logout, etc. likely live.
 app.use('/', require('./routes/auth'));
+app.use('/api/catalog', require('./routes/catalog'));
 
 // Simple health-check route to confirm the server is up.
 // Visiting http://localhost:3000/ shows this message.
