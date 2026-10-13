@@ -3,6 +3,10 @@ CREATE DATABASE IF NOT EXISTS library;
 -- select it so every table I create next goes inside it
 USE library;
 
+-- Foreign key rule: every foreign key uses ON DELETE RESTRICT ON UPDATE RESTRICT.
+-- The system soft-deletes (Is_active / Status columns) and never hard-deletes history,
+-- so MySQL should refuse to remove or re-key a row that other rows still point to.
+
 -- =====================================================================
 -- 1. Publisher
 -- =====================================================================
@@ -89,9 +93,11 @@ CREATE TABLE Member (
 
     PRIMARY KEY (Member_id),
     CONSTRAINT fk_member_membertype FOREIGN KEY (Member_type_id)
-        REFERENCES MemberType(Member_type_id),
+        REFERENCES MemberType(Member_type_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_member_staff FOREIGN KEY (Staff_id)
-        REFERENCES Staff(Staff_id),
+        REFERENCES Staff(Staff_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_member_username UNIQUE (Username),
     CONSTRAINT uq_member_email UNIQUE (Email),
     CONSTRAINT uq_member_staff UNIQUE (Staff_id),    -- one employee = at most one member record
@@ -123,7 +129,8 @@ CREATE TABLE CatalogItem (
     
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_catalogitem_publisher FOREIGN KEY (Publisher_id)
-        REFERENCES Publisher(Publisher_id),
+        REFERENCES Publisher(Publisher_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_catalogitem_id_type UNIQUE (Item_id, Item_type),
     CONSTRAINT ck_catalogitem_title_not_blank CHECK (TRIM(Title) <> ''),
     CONSTRAINT ck_catalogitem_replacement_cost CHECK (Replacement_cost >= 0),
@@ -141,7 +148,8 @@ CREATE TABLE Book (
     Genre VARCHAR(50) NULL,
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_book_catalogitem FOREIGN KEY (Item_id, Item_type) 
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_book_isbn UNIQUE (Isbn),
     CONSTRAINT ck_book_type CHECK (Item_type = 'book'),
     CONSTRAINT ck_book_isbn_format
@@ -158,9 +166,11 @@ CREATE TABLE BookAuthor(
     Author_id INT NOT NULL,
     PRIMARY KEY(Item_id, Author_id),
     CONSTRAINT fk_bookauthor_book FOREIGN KEY (Item_id) 
-        REFERENCES Book(Item_id),
+        REFERENCES Book(Item_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_bookauthor_author FOREIGN KEY (Author_id) 
         REFERENCES Author(Author_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 
 -- =====================================================================
@@ -175,7 +185,8 @@ CREATE TABLE Videogame (
     Esrb_rating VARCHAR(10)  NULL,
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_videogame_catalogitem FOREIGN KEY (Item_id, Item_type) 
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT ck_videogame_type CHECK (Item_type = 'videogame')
 );
 
@@ -192,7 +203,8 @@ CREATE TABLE BoardGame (
 
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_boardgame_catalogitem FOREIGN KEY (Item_id, Item_type)
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT ck_boardgame_type CHECK (Item_type = 'boardgame'),
     CONSTRAINT ck_boardgame_min_players CHECK (Min_players IS NULL OR Min_players > 0),
     CONSTRAINT ck_boardgame_max_players CHECK (Max_players IS NULL OR Max_players > 0),
@@ -214,7 +226,8 @@ CREATE TABLE DVD (
 
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_dvd_catalogitem FOREIGN KEY (Item_id, Item_type)
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT ck_dvd_type CHECK (Item_type = 'dvd')
 );
 
@@ -231,7 +244,8 @@ CREATE TABLE Music (
 
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_music_catalogitem FOREIGN KEY (Item_id, Item_type)
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT ck_music_type CHECK (Item_type = 'music')
 );
 
@@ -250,7 +264,8 @@ CREATE TABLE Newspaper (
 
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_newspaper_catalogitem FOREIGN KEY (Item_id, Item_type)
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_newspaper_issue UNIQUE (Newspaper_name, Issue_date, Edition),
                                                      -- the same issue cannot be entered twice
     CONSTRAINT ck_newspaper_type CHECK (Item_type = 'newspaper'),
@@ -274,7 +289,8 @@ CREATE TABLE ResearchPaper (
 
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_researchpaper_catalogitem FOREIGN KEY (Item_id, Item_type)
-        REFERENCES CatalogItem(Item_id, Item_type),
+        REFERENCES CatalogItem(Item_id, Item_type)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_researchpaper_doi UNIQUE (Doi),
     CONSTRAINT ck_researchpaper_type CHECK (Item_type = 'researchpaper')
 );
@@ -289,9 +305,11 @@ CREATE TABLE PaperAuthor (
 
     PRIMARY KEY (Item_id, Author_id),
     CONSTRAINT fk_paperauthor_researchpaper FOREIGN KEY (Item_id)
-        REFERENCES ResearchPaper(Item_id),
+        REFERENCES ResearchPaper(Item_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_paperauthor_author FOREIGN KEY (Author_id)
         REFERENCES Author(Author_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 
 
@@ -309,7 +327,8 @@ CREATE TABLE Copy (
 
     PRIMARY KEY (Copy_id),
     CONSTRAINT fk_copy_catalogitem FOREIGN KEY (Item_id)
-        REFERENCES CatalogItem(Item_id),
+        REFERENCES CatalogItem(Item_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_copy_barcode UNIQUE (Barcode)      -- every copy has its own barcode
 );
 
@@ -334,13 +353,17 @@ CREATE TABLE Loan (
 
     PRIMARY KEY (Loan_id),
     CONSTRAINT fk_loan_copy FOREIGN KEY (Copy_id)
-        REFERENCES Copy(Copy_id),
+        REFERENCES Copy(Copy_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_loan_member FOREIGN KEY (Member_id)
-        REFERENCES Member(Member_id),
+        REFERENCES Member(Member_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_loan_checkout_staff FOREIGN KEY (Staff_id)
-        REFERENCES Staff(Staff_id),
+        REFERENCES Staff(Staff_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_loan_return_staff FOREIGN KEY (Return_staff_id)
-        REFERENCES Staff(Staff_id),
+        REFERENCES Staff(Staff_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_loan_open_copy UNIQUE (Open_copy_id),
                                                      -- a copy can have at most ONE open loan (empty values never clash)
     CONSTRAINT ck_loan_due_after_checkout CHECK (Due_date > Checkout_date),
@@ -377,11 +400,14 @@ CREATE TABLE Hold (
 
     PRIMARY KEY (Hold_id),
     CONSTRAINT fk_hold_catalogitem FOREIGN KEY (Item_id)
-        REFERENCES CatalogItem(Item_id),
+        REFERENCES CatalogItem(Item_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_hold_member FOREIGN KEY (Member_id)
-        REFERENCES Member(Member_id),
+        REFERENCES Member(Member_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_hold_reserved_copy FOREIGN KEY (Reserved_copy_id)
-        REFERENCES Copy(Copy_id),
+        REFERENCES Copy(Copy_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_hold_one_open_per_member_item UNIQUE (Item_id, Member_id, Is_open),
                                                      -- one open hold per member and item (old holds can pile up)
     CONSTRAINT ck_hold_ready_needs_copy CHECK (Status <> 'Ready' OR Reserved_copy_id IS NOT NULL),
@@ -404,7 +430,8 @@ CREATE TABLE Fine (
 
     PRIMARY KEY (Fine_id),
     CONSTRAINT fk_fine_loan FOREIGN KEY (Loan_id)
-        REFERENCES Loan(Loan_id),
+        REFERENCES Loan(Loan_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_fine_loan_type UNIQUE (Loan_id, Fine_type),
                                                      -- at most one fine of each type per loan
     CONSTRAINT ck_fine_amount CHECK (Amount >= 0),
@@ -430,4 +457,5 @@ CREATE TABLE Notification (
     PRIMARY KEY (Notification_id),
     CONSTRAINT fk_notification_member FOREIGN KEY (Member_id)
         REFERENCES Member(Member_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT
 );

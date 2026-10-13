@@ -1,2 +1,23 @@
-node_modules/
+# Private settings: never upload these
 .env
+.env.*
+!.env.example
+
+# Installed packages: each person gets their own with npm install
+node_modules/
+
+# Personal database exports and backups (may contain real data)
+backups/
+*.bak
+
+# Log files
+*.log
+
+# Azure credential files (contain secrets)
+*.publishsettings
+
+# Computer/editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
