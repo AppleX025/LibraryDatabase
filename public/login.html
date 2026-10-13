@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Library Login</title>
+</head>
+<body>
+  <h1>Library Login</h1>
+  <form id="loginForm">
+    <label>Username or email</label><br>
+    <input type="text" id="username" required><br><br>
+    <label>Password</label><br>
+    <input type="password" id="password" required><br><br>
+    <button type="submit">Log in</button>
+  </form>
+  <p id="message" style="color:red;"></p>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = data.isStaff ? '/staff.html' : '/account.html';
+      } else {
+        document.getElementById('message').textContent = data.message;
+      }
+    });
+  </script>
+</body>
+</html>
