@@ -3,7 +3,8 @@
 -- Purpose: when a loan is marked as returned AFTER its due date, MySQL
 --          automatically (1) adds an 'overdue' fine and (2) sends the
 --          member a 'fine_assessed' notification.
--- Rule:    $0.35 per day late, capped at $10.00 per item.
+-- Rule:    $0.35 per day late, capped at $10.00 per item. If an overdue fine already exists for the
+--          loan (created while the item was still out), it is updated rather than duplicated.
 -- Safe to run more than once (it drops the old version first).
 -- =====================================================================
 USE library;
@@ -12,14 +13,12 @@ DROP TRIGGER IF EXISTS trg_loan_overdue_fine;
 
 -- DELIMITER: the trigger body contains several ';' statements, so we
 -- temporarily use $$ to mark where the whole CREATE TRIGGER ends.
-
 DELIMITER $$
 
 CREATE TRIGGER trg_loan_overdue_fine
 AFTER UPDATE ON Loan            -- AFTER: the loan row is already saved when this runs
 FOR EACH ROW                    -- runs once for every loan row that was updated
 BEGIN
-
     -- Variables (DECLARE must come first, right after BEGIN)
     DECLARE days_late   INT;            -- how many days past the due date
     DECLARE fine_amount DECIMAL(6, 2);  -- matches Fine.Amount NUMERIC(6,2)
@@ -29,7 +28,6 @@ BEGIN
     --   NEW.Return_date IS NOT NULL  -> it now has a return date
     --   NEW.Return_date > NEW.Due_date -> and it was returned late
     -- Checking OLD stops a second fine if the row is edited again later.
-    
     IF OLD.Return_date IS NULL
        AND NEW.Return_date IS NOT NULL
        AND NEW.Return_date > NEW.Due_date THEN
@@ -41,8 +39,11 @@ BEGIN
         SET fine_amount = LEAST(days_late * 0.35, 10.00);
 
         -- Add the fine. Date_assessed, Is_paid and Date_paid fill in by default.
+        -- A loan can have only one 'overdue' fine (unique rule). If one was already created while the
+        -- item was still out, raise it to the final amount instead (GREATEST = never lower it).
         INSERT INTO Fine (Loan_id, Fine_type, Amount)
-        VALUES (NEW.Loan_id, 'overdue', fine_amount);
+        VALUES (NEW.Loan_id, 'overdue', fine_amount)
+        ON DUPLICATE KEY UPDATE Amount = GREATEST(Amount, fine_amount);
 
         -- Tell the member. Channel, Date_sent and Is_read fill in by default.
         INSERT INTO Notification (Member_id, Notification_type, Message)
