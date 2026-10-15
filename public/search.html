@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Search the Catalog</title>
+</head>
+<body>
+  <h1>Search the Catalog</h1>
+
+  <input id="q" type="text" placeholder="Title or author">
+  <select id="category">
+    <option value="">All categories</option>
+    <option value="book">Book</option>
+    <option value="videogame">Videogame</option>
+    <option value="boardgame">BoardGame</option>
+    <option value="dvd">DVD</option>
+    <option value="music">Music</option>
+    <option value="newspaper">Newspaper</option>
+    <option value="researchpaper">ResearchPaper</option>
+  </select>
+  <button id="go">Search</button>
+
+  <p id="message"></p>
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr><th>Title</th><th>Category</th><th>Available copies</th></tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
+
+  <script>
+    async function search() {
+      const q = document.getElementById('q').value;
+      const category = document.getElementById('category').value;
+      const message = document.getElementById('message');
+      const tbody = document.getElementById('results');
+
+      const url = '/api/search?q=' + encodeURIComponent(q) +
+                  '&category=' + encodeURIComponent(category);
+      const response = await fetch(url);
+      const data = await response.json();
+
+      tbody.innerHTML = '';
+      if (!response.ok) { message.textContent = data.error; return; }
+      message.textContent = data.length === 0 ? 'No items found.' : '';
+
+      for (const item of data) {
+        const tr = document.createElement('tr');
+        for (const value of [item.Title, item.Item_type, item.available_copies]) {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+
+    document.getElementById('go').addEventListener('click', search);
+    document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+    search();
+  </script>
+</body>
+</html>
