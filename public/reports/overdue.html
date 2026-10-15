@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Overdue Loans Report</title>
+    <style>
+        /* Simple report look: full-width table with borders and a shaded header row */
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .num { text-align: right; }                      /* right-align number columns */
+        #summary { margin: 1rem 0; font-weight: bold; }  /* the line above the table */
+    </style>
+</head>
+<body>
+    <h1>Overdue Loans</h1>
+    <!-- The script replaces this text with the totals line, or with an error message -->
+    <p id="summary">Loading...</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Member</th><th>Email</th><th>Title</th><th>Barcode</th>
+                <th>Due Date</th><th class="num">Days Overdue</th><th class="num">Fine so far</th>
+            </tr>
+        </thead>
+        <!-- The script adds one <tr> per overdue loan inside this tbody -->
+        <tbody id="rows"></tbody>
+    </table>
+
+    <script>
+        // Makes text safe to put inside HTML, so a name containing "<" cannot break the page.
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Gets the report rows from the server and fills the table.
+        async function loadReport() {
+            // 1. Ask the server for the report (the staff-only route in routes/reports.js).
+            const response = await fetch('/api/reports/overdue');
+            const data = await response.json();
+
+            // FIX: if the visitor is not staff (or not logged in) the server sends an error
+            // message instead of a list. Show it and stop, otherwise the loop below would crash.
+            if (!response.ok) {
+                document.getElementById('summary').textContent = data.message;
+                return;
+            }
+
+            // 2. Start with an empty table body and a running total of the fines.
+            const rowsContainer = document.getElementById('rows');
+            rowsContainer.innerHTML = '';
+            let totalFine = 0;
+
+            // 3. Add one table row for every overdue loan.
+            for (const row of data) {
+                // FIX: fine_so_far arrives as text ("5.60"), so turn it into a number first.
+                const fine = parseFloat(row.fine_so_far);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(row.member_name)}</td>
+                    <td>${escapeHtml(row.member_email)}</td>   <!-- FIX: the column is member_email, not email -->
+                    <td>${escapeHtml(row.title)}</td>
+                    <td>${escapeHtml(row.barcode)}</td>
+                    <td>${escapeHtml(row.due_date.slice(0, 10))}</td>  <!-- FIX: keep only YYYY-MM-DD -->
+                    <td class="num">${row.overdue_days}</td>           <!-- FIX: the column is overdue_days -->
+                    <td class="num">$${fine.toFixed(2)}</td>
+                `;
+                rowsContainer.appendChild(tr);
+
+                totalFine += fine;   // add this loan's fine to the total
+            }
+
+            // 4. Write the summary line above the table.
+            // FIX: removed the leftover "BLANK 5" line (it would erase the rows you just added)
+            // and the stray escapeHtml(...) call (it did nothing).
+            document.getElementById('summary').textContent =
+                `${data.length} overdue loans, total fines so far: $${totalFine.toFixed(2)}`;
+        }
+
+        // FIX: this call was missing, so the page never loaded any data. Run it when the page opens.
+        loadReport();
+    </script>
+</body>
+</html>
