@@ -62,6 +62,12 @@ app.use('/', require('./routes/auth'));
 // (Josh: changed from '/reports' so pages and data addresses do not mix.)
 app.use('/api/reports', require('./routes/reports'));
 
+app.use('/', require('./routes/search'));
+// Simple health-check route to confirm the server is up.
+// Visiting http://localhost:3000/ shows this message.
+// search-holds
+
+
 // ---------------------------------------------------------------------
 // Simple test routes
 // ---------------------------------------------------------------------
