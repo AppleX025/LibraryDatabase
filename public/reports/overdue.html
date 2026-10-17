@@ -43,8 +43,9 @@
             const response = await fetch('/api/reports/overdue');
             const data = await response.json();
 
-            // FIX: if the visitor is not staff (or not logged in) the server sends an error
-            // message instead of a list. Show it and stop, otherwise the loop below would crash.
+            // If the visitor is not logged in, or is not staff, the server answers
+            // with an error message instead of a list of loans. Show that message
+            // and stop here, because the loop below needs a list.
             if (!response.ok) {
                 document.getElementById('summary').textContent = data.message;
                 return;
@@ -57,17 +58,23 @@
 
             // 3. Add one table row for every overdue loan.
             for (const row of data) {
-                // FIX: fine_so_far arrives as text ("5.60"), so turn it into a number first.
+                // MySQL sends the fine as text (for example "5.60"). Turning it into
+                // a number lets us add the amounts and format them.
                 const fine = parseFloat(row.fine_so_far);
 
+                // Build the row as text. Names, emails, titles and barcodes were typed
+                // by people, so they go through escapeHtml. due_date arrives as a full
+                // timestamp, and slice(0, 10) keeps only the date part (YYYY-MM-DD).
+                // overdue_days is a number from the database, so it is shown as it is.
+                // The fine is shown with a $ and two decimals (3.5 becomes 3.50).
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${escapeHtml(row.member_name)}</td>
-                    <td>${escapeHtml(row.member_email)}</td>   <!-- FIX: the column is member_email, not email -->
+                    <td>${escapeHtml(row.member_email)}</td>
                     <td>${escapeHtml(row.title)}</td>
                     <td>${escapeHtml(row.barcode)}</td>
-                    <td>${escapeHtml(row.due_date.slice(0, 10))}</td>  <!-- FIX: keep only YYYY-MM-DD -->
-                    <td class="num">${row.overdue_days}</td>           <!-- FIX: the column is overdue_days -->
+                    <td>${escapeHtml(row.due_date.slice(0, 10))}</td>
+                    <td class="num">${row.overdue_days}</td>
                     <td class="num">$${fine.toFixed(2)}</td>
                 `;
                 rowsContainer.appendChild(tr);
@@ -75,14 +82,13 @@
                 totalFine += fine;   // add this loan's fine to the total
             }
 
-            // 4. Write the summary line above the table.
-            // FIX: removed the leftover "BLANK 5" line (it would erase the rows you just added)
-            // and the stray escapeHtml(...) call (it did nothing).
+            // 4. Replace "Loading..." with the summary line above the table.
+            // data.length is the number of overdue loans (one row per loan).
             document.getElementById('summary').textContent =
                 `${data.length} overdue loans, total fines so far: $${totalFine.toFixed(2)}`;
         }
 
-        // FIX: this call was missing, so the page never loaded any data. Run it when the page opens.
+        // Start loading the report as soon as the page opens.
         loadReport();
     </script>
 </body>

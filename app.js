@@ -40,7 +40,9 @@ app.use(express.json());
 
 // Sessions: after login, the browser carries a cookie that points to
 // the user's session (userId, isStaff). SESSION_SECRET signs that cookie.
-// NOTE: the 'fallback_secret' is only for local testing; see the review notes.
+// If SESSION_SECRET is missing from the .env file, the code falls back to
+// 'fallback_secret'. That is fine for local testing only: a real server must
+// set its own secret, because anyone who knows it can forge a login cookie.
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback_secret',
   resave: false,              // do not re-save a session that did not change
@@ -60,13 +62,12 @@ app.use('/api/catalog', require('./routes/catalog'));
 
 // Report data (staff only). Every route in routes/reports.js is reached
 // under /api/reports, for example /api/reports/overdue.
-// (Josh: changed from '/reports' so pages and data addresses do not mix.)
+// Data addresses start with /api so they never clash with the report pages in
+// public/reports/ (/reports/overdue.html is the page, /api/reports/overdue is its data).
 app.use('/api/reports', require('./routes/reports'));
 
+// Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
-// Simple health-check route to confirm the server is up.
-// Visiting http://localhost:3000/ shows this message.
-// search-holds
 
 
 // ---------------------------------------------------------------------
