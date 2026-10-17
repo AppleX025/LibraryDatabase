@@ -1,32 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Search the Catalog</title>
+  <link rel="stylesheet" href="/search.css">
 </head>
 <body>
-  <h1>Search the Catalog</h1>
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / Catalog Search</span>
+    </div>
+    <nav>
+      <!-- auth-nav.js puts a Login link or Log out button here -->
+      <span id="authLink"></span>
+    </nav>
+  </header>
 
-  <input id="q" type="text" placeholder="Title or author">
-  <select id="category">
-    <option value="">All categories</option>
-    <option value="book">Book</option>
-    <option value="videogame">Videogame</option>
-    <option value="boardgame">BoardGame</option>
-    <option value="dvd">DVD</option>
-    <option value="music">Music</option>
-    <option value="newspaper">Newspaper</option>
-    <option value="researchpaper">ResearchPaper</option>
-  </select>
-  <button id="go">Search</button>
+  <main>
+    <h1>Search the Catalog</h1>
+    <p class="muted">Find books, games, DVDs and more by title or author.</p>
 
-  <p id="message"></p>
-  <table border="1" cellpadding="6">
-    <thead>
-      <tr><th>Title</th><th>Category</th><th>Available copies</th></tr>
-    </thead>
-    <tbody id="results"></tbody>
-  </table>
+    <section class="panel">
+      <div class="search-bar">
+        <input id="q" type="text" placeholder="Title or author">
+        <select id="category">
+          <option value="">All categories</option>
+          <option value="book">Book</option>
+          <option value="videogame">Videogame</option>
+          <option value="boardgame">BoardGame</option>
+          <option value="dvd">DVD</option>
+          <option value="music">Music</option>
+          <option value="newspaper">Newspaper</option>
+          <option value="researchpaper">ResearchPaper</option>
+        </select>
+        <button id="go">Search</button>
+      </div>
+
+      <p id="message"></p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Category</th><th>Available copies</th></tr>
+          </thead>
+          <tbody id="results"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
   <script>
     async function search() {
@@ -58,6 +81,9 @@
     document.getElementById('go').addEventListener('click', search);
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
     search();
+
+
   </script>
+  <script src="/auth-nav.js"></script>
 </body>
 </html>

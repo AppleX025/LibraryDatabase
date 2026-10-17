@@ -2,29 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Library Login</title>
+  <link rel="stylesheet" href="/login.css">
 </head>
 <body>
-  <h1>Library Login</h1>
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / Login</span>
+    </div>
+  </header>
 
-  <!-- The form has no action or method on purpose. Instead of a normal form
-       submit (which reloads the page), the script below intercepts the
-       submit and sends the data with fetch(). -->
-  <form id="loginForm">
-    <!-- One field accepts either a username (members) or an email (staff,
-         who have no username). The server decides which one it is. -->
-    <label>Username or email</label><br>
-    <input type="text" id="username" required><br><br>
+  <main>
+    <section class="panel">
+      <h1>Library Login</h1>
+      <p class="muted">Sign in with your username or email.</p>
 
-    <label>Password</label><br>
-    <!-- type="password" hides the characters as they're typed -->
-    <input type="password" id="password" required><br><br>
+      <!-- The form has no action or method on purpose. Instead of a normal form
+           submit (which reloads the page), the script below intercepts the
+           submit and sends the data with fetch(). -->
+      <form id="loginForm">
+        <!-- One field accepts either a username (members) or an email (staff,
+             who have no username). The server decides which one it is. -->
+        <label for="username">Username or email</label>
+        <input type="text" id="username" required>
 
-    <button type="submit">Log in</button>
-  </form>
+        <label for="password">Password</label>
+        <!-- type="password" hides the characters as they're typed -->
+        <input type="password" id="password" required>
 
-  <!-- Empty paragraph where login errors are displayed (in red) -->
-  <p id="message" style="color:red;"></p>
+        <button type="submit">Log in</button>
+      </form>
+
+      <!-- Empty paragraph where login errors are displayed.
+           login.css shows it as a red box only when it has text. -->
+      <p id="message"></p>
+    </section>
+  </main>
 
   <script>
     // Run this function when the form is submitted
