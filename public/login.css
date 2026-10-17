@@ -1,0 +1,132 @@
+/* =====================================================================
+   login.css
+   Styles for the login page (login.html).
+   Uses the same colors, header and card look as catalog-admin.css.
+   ===================================================================== */
+
+/* ---------- Page-wide defaults: font, text color, page background ---------- */
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  color: #17243b;
+  background: #f4f7fb;
+}
+
+/* Make width/height include padding and border (easier to size boxes) */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+/* ---------- Top bar (dark blue header) ---------- */
+header {
+  background: #142744;
+  color: white;
+  padding: 17px max(20px, calc((100vw - 1100px)/2));
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+/* The lighter " / Login" text next to the app name */
+header div span {
+  color: #bed0e9;
+}
+
+/* ---------- Page content: a narrow box centered on the page ---------- */
+main {
+  max-width: 440px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+
+/* Grey helper text under the heading */
+.muted {
+  color: #64748b;
+}
+
+/* ---------- The white card that holds the form ---------- */
+.panel {
+  background: white;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px #1e293b0a;
+}
+
+/* ---------- Form fields ---------- */
+label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bcc8d9;
+  border-radius: 6px;
+  margin: 5px 0 15px;
+  font: inherit;
+}
+
+/* ---------- Log in button (full width of the card) ---------- */
+button {
+  width: 100%;
+  border: 0;
+  background: #195eb8;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Slightly darker when the mouse is over the button */
+button:hover {
+  filter: brightness(.92);
+}
+
+/* ---------- Error message under the form ---------- */
+/* login.html puts the server's error text into this paragraph.
+   It is red like the error box on the admin page. */
+#message {
+  padding: 12px 15px;
+  border-radius: 7px;
+  margin: 16px 0 0;
+  background: #fff0ee;
+  color: #a12525;
+}
+
+/* No text yet = no red box */
+#message:empty {
+  display: none;
+}
+
+/* ---------- Phones and narrow windows ---------- */
+@media (max-width: 700px) {
+  header {
+    padding: 15px;
+  }
+
+  /* Hide the " / Login" text to save space */
+  header div span {
+    display: none;
+  }
+
+  main {
+    margin: 30px auto;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
