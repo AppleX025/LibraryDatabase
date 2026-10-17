@@ -23,8 +23,9 @@ const { isStaff } = require('../middleware/auth');
 // ---------------------------------------------------------------------
 router.get('/overdue', isStaff, async (req, res) => {
     try {
-        // Ask MySQL for the saved view, sorting here (views don't sort).
-        // FIX: the view is named Overdue_Loans, and the sort was missing.
+        // Ask MySQL for the saved view Overdue_Loans (one row per loan that is
+        // past its due date). Views don't sort, so we sort here: the loan that
+        // is the most overdue (overdue_days) comes first.
         const [rows] = await db.query(
             'SELECT * FROM Overdue_Loans ORDER BY overdue_days DESC'
         );
@@ -50,8 +51,6 @@ router.get('/fines', isStaff, async (req, res) => {
         // Ask MySQL for the saved view Member_Fines (one row per member who
         // still owes money). Views don't sort, so we sort here:
         // the member who owes the most (unpaid_fines_total) comes first.
-        // CHANGED: the view is Member_Fines (not "Fines"), and the amount
-        // column is unpaid_fines_total (not "total_fines").
         const [rows] = await db.query(
             'SELECT * FROM Member_Fines ORDER BY unpaid_fines_total DESC'
         );
@@ -94,6 +93,7 @@ router.get('/borrowed', isStaff, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 // Makes this router available to app.js, which loads this file with
 // require('./routes/reports') and mounts it at /api/reports.
 module.exports = router;
