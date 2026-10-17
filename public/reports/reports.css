@@ -1,0 +1,210 @@
+/* =====================================================================
+   reports.css
+   One shared stylesheet for the staff report pages in public/reports/
+   (overdue.html, fines.html, borrowed.html).
+   Uses the same colors, header, cards and tables as catalog-admin.css.
+
+   Link it from each report page with:
+     <link rel="stylesheet" href="/reports/reports.css">
+
+   Page structure this file expects:
+     <header>  brand <div> + <nav><span id="authLink"></span></nav>  </header>
+     <main>
+       <h1>
+       <p id="summary">
+       <nav class="report-tabs">  (optional links between the reports)
+       <section class="panel"><div class="table-scroll"><table>...</table></div></section>
+     </main>
+     Number columns:  class="num"
+     Status labels:   <span class="badge blocked"> or <span class="badge ok">
+   ===================================================================== */
+
+/* ---------- Page-wide defaults: font, text color, page background ---------- */
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  color: #17243b;
+  background: #f4f7fb;
+}
+
+/* Make width/height include padding and border (easier to size boxes) */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+/* ---------- Top bar (dark blue header) ---------- */
+header {
+  background: #142744;
+  color: white;
+  padding: 17px max(20px, calc((100vw - 1100px)/2));
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+/* The lighter " / Reports" text next to the app name.
+   Only the span inside the brand <div>, so the Login / Log out control
+   (a <span id="authLink"> inside <nav>) is never hidden. */
+header div span {
+  color: #bed0e9;
+}
+
+/* Links in the header (like "Login") are white */
+header a {
+  color: white;
+}
+
+/* The group of controls on the right side of the header */
+header nav {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+/* ---------- Page content area ---------- */
+main {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+h1 {
+  margin-bottom: 5px;
+}
+
+/* The line under the title: "Loading...", the totals, or an error message */
+#summary {
+  margin: 0 0 16px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* ---------- Links between the reports (optional) ---------- */
+.report-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.report-tabs a {
+  background: #e6ebf3;
+  color: #21354f;
+  padding: 10px 16px;
+  border-radius: 7px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.report-tabs a:hover {
+  filter: brightness(.92);
+}
+
+/* The report that is currently open */
+.report-tabs a.active {
+  background: #195eb8;
+  color: white;
+}
+
+/* ---------- White card that holds the table ---------- */
+.panel {
+  background: white;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px #1e293b0a;
+}
+
+/* ---------- Buttons (Log out) ---------- */
+button {
+  border: 0;
+  background: #195eb8;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Slightly darker when the mouse is over a button */
+button:hover {
+  filter: brightness(.92);
+}
+
+/* ---------- Report table ---------- */
+/* Lets a wide table scroll sideways instead of breaking the page */
+.table-scroll {
+  overflow-x: auto;
+  margin: 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 11px 9px;
+  text-align: left;
+  border-bottom: 1px solid #e3e9f1;
+}
+
+/* Column titles get a light blue-grey background */
+th {
+  background: #f0f4fa;
+}
+
+/* A row gets a faint highlight under the mouse, to help read across */
+tbody tr:hover td {
+  background: #f7f9fd;
+}
+
+/* Number columns (days, money, counts): right-aligned, digits line up */
+.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Status labels (for example Blocked / OK on the fines report) ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Red: the member is blocked from borrowing (owes more than the limit) */
+.badge.blocked {
+  background: #fff0ee;
+  color: #a12525;
+}
+
+/* Green: all good */
+.badge.ok {
+  background: #e4f3e9;
+  color: #195a34;
+}
+
+/* ---------- Phones and narrow windows ---------- */
+@media (max-width: 700px) {
+  header {
+    padding: 15px;
+  }
+
+  /* Hide the " / Reports" text to save space */
+  header div span {
+    display: none;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}

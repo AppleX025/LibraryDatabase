@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Unpaid Fines Report</title>
+    <!-- The shared look for all report pages (colors, header, card, table).
+         The file is public/reports/reports.css -->
+    <link rel="stylesheet" href="/reports/reports.css">
+</head>
+<body>
+    <!-- Top bar. The Login link or Log out button is added inside the empty
+         <span id="authLink"> by auth-nav.js, which is loaded at the bottom. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Unpaid Fines</h1>
+        <!-- One line above the table. It starts as "Loading..." and the script
+             replaces it with the totals, or with an error message if the
+             server refuses the request. -->
+        <p id="summary">Loading...</p>
+
+        <!-- The white card that holds the table. The scroll wrapper lets a wide
+             table scroll sideways on small screens instead of breaking the page. -->
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Email</th>
+                            <!-- class="num" right-aligns the number columns,
+                                 both the headings and the cells below them -->
+                            <th class="num">Unpaid Fines</th>
+                            <th class="num">Total Owed</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row here for every
+                         member who owes fines. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Turns text into a form that is safe to put inside HTML, so a name
+        // containing "<" or "&" shows up as plain text and cannot break the page.
+        function escapeHtml(text) {
+            // A <div> that is never added to the page, used only as a converter:
+            // text goes in as plain text, and comes out as safe HTML.
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Gets the fines report from the server and fills in the table and
+        // the summary line. It runs once, when the page opens.
+        async function loadReport() {
+            // Ask the server for the report. This is the staff-only route
+            // GET /api/reports/fines in routes/reports.js. "await" pauses here
+            // until the server answers, then the answer is read as JSON.
+            const response = await fetch('/api/reports/fines');
+            const data = await response.json();
+
+            // If the visitor is not logged in, or is not staff, the server answers
+            // with an error message instead of a list of members. Show that
+            // message and stop here, because the loop below needs a list.
+            if (!response.ok) {
+                document.getElementById('summary').textContent = data.message;
+                return;
+            }
+
+            // The table body to fill. It is emptied first so rows never pile up
+            // if this function ever runs twice.
+            const rowsContainer = document.getElementById('rows');
+            rowsContainer.innerHTML = '';
+
+            // Two numbers that grow as the loop below adds each member:
+            // the total money owed, and how many members are blocked.
+            let totalOwed = 0;
+            let blockedCount = 0;
+
+            // "data" is the list of members who owe fines.
+            // This loop builds one table row for each member.
+            for (const row of data) {
+                // MySQL sends the money as text (for example "5.60"). Turning it
+                // into a number lets us add the amounts and format them.
+                const owed = parseFloat(row.unpaid_fines_total);
+
+                // The report view sends is_blocked as 1 (owes more than the limit,
+                // so the member cannot borrow) or 0 (still allowed to borrow).
+                // Number(...) makes sure it is compared as a number either way.
+                const blocked = Number(row.is_blocked) === 1;
+
+                // A word is clearer than 1 or 0. The badge classes come from
+                // reports.css: "blocked" is a red label, "ok" is a green one.
+                const status = blocked
+                    ? '<span class="badge blocked">Blocked</span>'
+                    : '<span class="badge ok">OK</span>';
+
+                // Build the row as text. Names and emails go through escapeHtml
+                // because they were typed by people. The money is built here from
+                // a number, so it is safe: toFixed(2) always shows two decimals
+                // (3.5 becomes 3.50).
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(row.member_name)}</td>
+                    <td>${escapeHtml(row.member_email)}</td>
+                    <td class="num">${escapeHtml(row.unpaid_fines_count)}</td>
+                    <td class="num">$${owed.toFixed(2)}</td>
+                    <td>${status}</td>
+                `;
+                rowsContainer.appendChild(tr);   // put the finished row in the table
+
+                totalOwed += owed;                // add this member's fines to the total
+                if (blocked) blockedCount += 1;   // count this member if blocked
+            }
+
+            // Replace "Loading..." with the totals line.
+            // data.length is the number of members (one row per member).
+            document.getElementById('summary').textContent =
+                `Members with unpaid fines: ${data.length} | Total owed: $${totalOwed.toFixed(2)} | Blocked: ${blockedCount}`;
+        }
+
+        // Start loading the report as soon as the page opens.
+        loadReport();
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

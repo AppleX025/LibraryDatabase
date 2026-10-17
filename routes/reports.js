@@ -40,6 +40,32 @@ router.get('/overdue', isStaff, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------
+// GET /api/reports/fines
+// Members who owe unpaid fines, biggest total first. Staff only.
+// (app.js adds the "/api/reports" part; this file adds "/fines".)
+// ---------------------------------------------------------------------
+router.get('/fines', isStaff, async (req, res) => {
+    try {
+        // Ask MySQL for the saved view Member_Fines (one row per member who
+        // still owes money). Views don't sort, so we sort here:
+        // the member who owes the most (unpaid_fines_total) comes first.
+        // CHANGED: the view is Member_Fines (not "Fines"), and the amount
+        // column is unpaid_fines_total (not "total_fines").
+        const [rows] = await db.query(
+            'SELECT * FROM Member_Fines ORDER BY unpaid_fines_total DESC'
+        );
+
+        // Send the rows back to the browser as JSON.
+        res.json(rows);
+    } catch (error) {
+        // Something failed (for example the database is down or a name is wrong).
+        // Print the real error in the terminal for us, and send the browser a
+        // short generic message so no internal details leak out.
+        console.error('Error fetching fines report:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 // FIX: this line was missing. It makes the router available to app.js,
 // which loads this file with require('./routes/reports').
 module.exports = router;
