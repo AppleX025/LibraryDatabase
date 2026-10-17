@@ -56,6 +56,7 @@ app.use(express.static('public'));
 // ---------------------------------------------------------------------
 // Login and logout (POST /login, POST /logout)
 app.use('/', require('./routes/auth'));
+app.use('/api/catalog', require('./routes/catalog'));
 
 // Report data (staff only). Every route in routes/reports.js is reached
 // under /api/reports, for example /api/reports/overdue.

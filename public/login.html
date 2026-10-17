@@ -55,7 +55,7 @@
         // The server has already stored the session; the browser keeps the
         // session cookie automatically. Send staff and members to
         // different landing pages.
-        window.location.href = data.isStaff ? '/staff.html' : '/account.html';
+        window.location.href = data.isStaff ? '/catalog-admin.html' : '/account.html';
       } else {
         // Login failed (wrong password, inactive account, etc.).
         // Show the server's error message under the form.

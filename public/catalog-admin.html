@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catalog Admin · Library</title>
+<link rel="stylesheet" href="/catalog-admin.css">
+<script src="/catalog-admin.js" defer></script>
+</head>
+<body>
+<header><div><strong>Library Database</strong><span> / Staff Catalog Admin</span></div><nav><a href="/login.html">Login</a><button id="logout" type="button">Log out</button></nav></header>
+<main>
+<h1>Catalog administration</h1><p class="muted">Add and update items, manage copies, and maintain publishers and authors.</p>
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<div class="tabs"><button type="button" data-tab="catalog" class="active">Catalog</button><button type="button" data-tab="item">Add / Edit item</button><button type="button" data-tab="people">Publishers &amp; authors</button></div>
+<section id="catalog" class="panel"><div class="toolbar"><h2>Catalog items</h2><button id="newItem" type="button">+ Add item</button></div>
+<label for="search">Search titles</label><input id="search" placeholder="Filter catalog by title, type, publisher">
+<div class="table-scroll"><table><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Publisher</th><th>All copies</th><th>Available</th><th>Withdrawn</th><th>Action</th></tr></thead><tbody id="catalogRows"></tbody></table></div></section>
+<section id="item" class="panel" hidden><h2 id="itemHeading">Add catalog item</h2>
+<form id="itemForm"><div class="form-grid">
+<label>Category <select name="Item_type" id="itemType" required><option value="">Choose category</option><option value="book">Book</option><option value="videogame">Videogame</option><option value="boardgame">Board game</option><option value="dvd">DVD</option><option value="music">Music</option><option value="newspaper">Newspaper</option><option value="researchpaper">Research paper</option></select></label>
+<label>Title <input name="Title" maxlength="255" required></label>
+<label>Publisher <select name="Publisher_id" id="publisherSelect"><option value="">No publisher</option></select></label>
+<label>Publication year <input name="Publication_year" type="number" min="1400" max="2100"></label>
+<label>Replacement cost ($) <input name="Replacement_cost" type="number" min="0" max="9999.99" step="0.01" required></label>
+</div><h3>Category details</h3><div id="extraFields" class="form-grid"></div>
+<div id="authorPicker" hidden><h3>Authors</h3><p class="muted">Hold Ctrl or Command to select multiple authors.</p><select id="authorSelect" multiple size="5" aria-label="Select authors"></select></div>
+<div class="actions"><button type="submit" id="saveItem">Save item</button><button type="button" class="secondary" id="cancelItem">Cancel</button></div></form>
+<section id="copiesPanel" hidden><h3>Physical copies</h3><div class="table-scroll"><table><thead><tr><th>Barcode</th><th>Condition</th><th>Shelf</th><th>Status</th><th>Action</th></tr></thead><tbody id="copyRows"></tbody></table></div>
+<form id="copyForm"><h4>Add a copy</h4><div class="form-grid"><label>Barcode <input name="Barcode" maxlength="20" required></label><label>Condition <select name="Condition"><option value="good">Good</option><option value="new">New</option><option value="worn">Worn</option><option value="damaged">Damaged</option></select></label><label>Shelf location <input name="Shelf_location" maxlength="30"></label><label>Acquired on <input type="date" name="Date_acquired" id="dateAcquired" required></label></div><button type="submit">Add copy</button></form>
+</section></section>
+<section id="people" class="panel" hidden><h2>Publishers and authors</h2><div class="two-col"><form id="publisherForm"><h3>Add publisher</h3><label>Name <input name="Name" maxlength="100" required></label><button type="submit">Add publisher</button><ul id="publisherList"></ul></form><form id="authorForm"><h3>Add author</h3><label>First name <input name="First_name" maxlength="50" required></label><label>Last name <input name="Last_name" maxlength="50" required></label><button type="submit">Add author</button><ul id="authorList"></ul></form></div></section>
+</main>
+</body></html>
