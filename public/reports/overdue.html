@@ -2,32 +2,58 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Overdue Loans Report</title>
-    <style>
-        /* Simple report look: full-width table with borders and a shaded header row */
-        body { font-family: Arial, sans-serif; margin: 2rem; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .num { text-align: right; }                      /* right-align number columns */
-        #summary { margin: 1rem 0; font-weight: bold; }  /* the line above the table */
-    </style>
+    <!-- The shared look for all report pages (colors, header, card, table).
+         The file is public/reports/reports.css -->
+    <link rel="stylesheet" href="/reports/reports.css">
 </head>
 <body>
-    <h1>Overdue Loans</h1>
-    <!-- The script replaces this text with the totals line, or with an error message -->
-    <p id="summary">Loading...</p>
+    <!-- Top bar. The Login link or Log out button is added inside the empty
+         <span id="authLink"> by auth-nav.js, which is loaded at the bottom. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Member</th><th>Email</th><th>Title</th><th>Barcode</th>
-                <th>Due Date</th><th class="num">Days Overdue</th><th class="num">Fine so far</th>
-            </tr>
-        </thead>
-        <!-- The script adds one <tr> per overdue loan inside this tbody -->
-        <tbody id="rows"></tbody>
-    </table>
+    <main>
+        <h1>Overdue Loans</h1>
+        <!-- One line above the table. It starts as "Loading..." and the script
+             replaces it with the totals, or with an error message if the
+             server refuses the request. -->
+        <p id="summary">Loading...</p>
+
+        <!-- The white card that holds the table. The scroll wrapper lets a wide
+             table scroll sideways on small screens instead of breaking the page. -->
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Email</th>
+                            <th>Title</th>
+                            <th>Barcode</th>
+                            <th>Due Date</th>
+                            <!-- class="num" right-aligns the number columns,
+                                 both the headings and the cells below them -->
+                            <th class="num">Days Overdue</th>
+                            <th class="num">Fine so far</th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row here for every
+                         overdue loan. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
     <script>
         // Makes text safe to put inside HTML, so a name containing "<" cannot break the page.
@@ -91,5 +117,7 @@
         // Start loading the report as soon as the page opens.
         loadReport();
     </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
 </body>
 </html>

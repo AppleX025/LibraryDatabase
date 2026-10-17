@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Most Borrowed Items Report</title>
+    <!-- The shared look for all report pages (colors, header, card, table).
+         The file is public/reports/reports.css -->
+    <link rel="stylesheet" href="/reports/reports.css">
+</head>
+<body>
+    <!-- Top bar. The Login link or Log out button is added inside the empty
+         <span id="authLink"> by auth-nav.js, which is loaded at the bottom. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Most Borrowed Items</h1>
+        <!-- One line above the table. It starts as "Loading..." and the script
+             replaces it with the totals, or with an error message if the
+             server refuses the request. -->
+        <p id="summary">Loading...</p>
+
+        <!-- The white card that holds the table. The scroll wrapper lets a wide
+             table scroll sideways on small screens instead of breaking the page. -->
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item ID</th>
+                            <th>Title</th>
+                            <th>Item Type</th>
+                            <!-- class="num" right-aligns a number column,
+                                 both its heading and the cells below it -->
+                            <th class="num">Times Borrowed</th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row here for every
+                         catalog item that was borrowed at least once. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Turns text into a form that is safe to put inside HTML, so a title
+        // containing "<" or "&" shows up as plain text and cannot break the page.
+        function escapeHtml(text) {
+            // A <div> that is never added to the page, used only as a converter:
+            // text goes in as plain text, and comes out as safe HTML.
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Gets the most-borrowed report from the server and fills in the table
+        // and the summary line. It runs once, when the page opens.
+        async function loadReport() {
+            // Ask the server for the report. This is the staff-only route
+            // GET /api/reports/borrowed in routes/reports.js. "await" pauses here
+            // until the server answers, then the answer is read as JSON.
+            const response = await fetch('/api/reports/borrowed');
+            const data = await response.json();
+
+            // If the visitor is not logged in, or is not staff, the server answers
+            // with an error message instead of a list of items. Show that message
+            // and stop here, because the loop below needs a list.
+            if (!response.ok) {
+                document.getElementById('summary').textContent = data.message;
+                return;
+            }
+
+            // The table body to fill. It is emptied first so rows never pile up
+            // if this function ever runs twice.
+            const rowsContainer = document.getElementById('rows');
+            rowsContainer.innerHTML = '';
+
+            // A number that grows as the loop below adds each item:
+            // how many loans there were in total, across all items.
+            let totalLoans = 0;
+
+            // "data" is the list of items, already sorted by the server with the
+            // most borrowed first. This loop builds one table row for each item.
+            for (const row of data) {
+                // Build the row as text. The column names must match the report
+                // view exactly, including capital letters: Item_id, Title, Item_type
+                // and times_borrowed. Titles were typed by people, so they go
+                // through escapeHtml.
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(row.Item_id)}</td>
+                    <td>${escapeHtml(row.Title)}</td>
+                    <td>${escapeHtml(row.Item_type)}</td>
+                    <td class="num">${escapeHtml(row.times_borrowed)}</td>
+                `;
+                rowsContainer.appendChild(tr);   // put the finished row in the table
+
+                // Number(...) makes sure the count is added as a number, not joined
+                // on the end like text.
+                totalLoans += Number(row.times_borrowed);
+            }
+
+            // Replace "Loading..." with the totals line.
+            // data.length is the number of items (one row per item).
+            document.getElementById('summary').textContent =
+                `Items borrowed at least once: ${data.length} | Total loans: ${totalLoans}`;
+        }
+
+        // Start loading the report as soon as the page opens.
+        loadReport();
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>
