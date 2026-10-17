@@ -112,5 +112,4 @@ $('authorForm').addEventListener('submit',async e=>{
 $('search').addEventListener('input',renderCatalog);
 $('newItem').addEventListener('click',newItem);$('cancelItem').addEventListener('click',()=>showTab('catalog'));
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.tab==='item')newItem();else showTab(b.dataset.tab);}));
-$('logout').addEventListener('click',async()=>{await fetch('/logout',{method:'POST'});location.href='/login.html';});
 (async()=>{try{await Promise.all([loadCatalog(),loadLists()]);$('dateAcquired').value=new Date().toISOString().slice(0,10);}catch(e){notify(e.message,true);}})();
