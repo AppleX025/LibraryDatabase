@@ -84,5 +84,25 @@ router.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ message: 'Logged out.' }));
 });
 
+// GET /me
+// Tells a page who is visiting: are they logged in, and are they staff?
+// Pages call this when they load, so they can show "Login" or "Log out"
+// and send visitors away from staff-only pages.
+// It always answers with a normal response, even for logged-out visitors,
+// because "not logged in" is a valid answer, not an error.
+router.get('/me', (req, res) => {
+  // userId is only saved in the session after a successful login.
+  // If it exists the visitor is logged in (true), otherwise false.
+  const loggedIn = req.session.userId ? true : false;
+
+  // isStaff was saved at login too: true for staff accounts, false for members.
+  // For a logged-out visitor it is missing, so this becomes false.
+  const isStaff = req.session.isStaff ? true : false;
+
+  // Send both answers back as JSON, e.g. { "loggedIn": true, "isStaff": false }.
+  // { loggedIn, isStaff } is shorthand for { loggedIn: loggedIn, isStaff: isStaff }.
+  res.json({ loggedIn, isStaff });
+});
+
 // Export the router so app.js can mount it with app.use('/', require('./routes/auth'))
 module.exports = router;
