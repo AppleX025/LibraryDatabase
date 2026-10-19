@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>My Holds</title>
+  <link rel="stylesheet" href="search.css">
+</head>
+<body>
+  <nav>
+    <a href="/search.html">Search</a> |
+    <a href="/my-holds.html">My Holds</a> |
+    <a href="/staff-holds.html">Staff Hold List</a> |
+    <span id="authLink"></span>
+  </nav>
+  <script src="/auth-nav.js"></script>
+
+  <h1>My Holds</h1>
+  <p id="message"></p>
+  <table>
+    <thead>
+      <tr><th>Title</th><th>Status</th><th>Placed</th><th>Expires</th><th></th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    // Loads the logged-in member's holds and fills the table
+    async function load() {
+      const res = await fetch('/api/my-holds');
+      // Not logged in -> go to the login page
+      if (res.status === 401) { location.href = '/login.html'; return; }
+      const data = await res.json();
+      const msg = document.getElementById('message');
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      if (!res.ok) { msg.textContent = data.error || data.message; return; }
+      msg.textContent = data.length ? '' : 'You have no holds.';
+
+      for (const h of data) {
+        const tr = document.createElement('tr');
+        const cells = [
+          h.Title,
+          h.Status,
+          new Date(h.Hold_date).toLocaleDateString(),
+          h.Expiry_date ? new Date(h.Expiry_date).toLocaleDateString() : ''
+        ];
+        for (const v of cells) {
+          const td = document.createElement('td');
+          td.textContent = v;
+          tr.appendChild(td);
+        }
+        // Cancel button only for open holds
+        const td = document.createElement('td');
+        if (h.Status === 'Active' || h.Status === 'Ready') {
+          const b = document.createElement('button');
+          b.textContent = 'Cancel';
+          b.onclick = async () => {
+            const r = await fetch('/api/holds/' + h.Hold_id + '/cancel', { method: 'POST' });
+            const d = await r.json();
+            msg.textContent = d.message || d.error;
+            load();
+          };
+          td.appendChild(b);
+        }
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

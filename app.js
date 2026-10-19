@@ -68,7 +68,7 @@ app.use('/api/reports', require('./routes/reports'));
 
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
-
+   app.use('/', require('./routes/holds'));
 
 // ---------------------------------------------------------------------
 // Simple test routes
