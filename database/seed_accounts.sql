@@ -1,4 +1,5 @@
--- Test accounts for development. Password for both: testpass123
+-- Test accounts for development. Password for all of them: testpass123
+-- Logins: staff@test.com (staff), admin@test.com (administrator), testmember (member).
 -- Run after schema.sql. Safe to run more than once.
 -- (A)
 
@@ -19,8 +20,11 @@ ON DUPLICATE KEY UPDATE Max_loans       = new_type.Max_loans,
                         Max_media_loans = new_type.Max_media_loans,
                         Max_renewals    = new_type.Max_renewals;
 
-INSERT IGNORE INTO Staff (First_name, Last_name, Email, Password_hash)
-VALUES ('Test', 'Staff', 'staff@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa');
+-- Two staff logins. Both can check items in and out and take payment on fines;
+-- only the administrator (Is_admin = TRUE) can also waive a fine.
+INSERT IGNORE INTO Staff (First_name, Last_name, Email, Password_hash, Is_admin)
+VALUES ('Test', 'Staff', 'staff@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa', FALSE),
+       ('Test', 'Admin', 'admin@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa', TRUE);
 
 INSERT IGNORE INTO Member (Member_type_id, Username, First_name, Last_name, Email, Password_hash)
 VALUES ((SELECT Member_type_id FROM MemberType WHERE Type_name = 'Student'),

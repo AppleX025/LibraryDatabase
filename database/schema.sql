@@ -59,6 +59,7 @@ CREATE TABLE Staff (
     Email         VARCHAR(100) NOT NULL,
     Password_hash VARCHAR(255) NOT NULL,             -- never the plain password
     Is_active     BOOLEAN NOT NULL DEFAULT TRUE,     -- false = account deactivated
+    Is_admin      BOOLEAN NOT NULL DEFAULT FALSE,    -- true = administrator: staff who may also waive fines
 
     PRIMARY KEY (Staff_id),
     CONSTRAINT uq_staff_email UNIQUE (Email),

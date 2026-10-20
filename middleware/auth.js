@@ -34,6 +34,20 @@ const isStaff = (req, res, next) => {
   return res.status(403).json({ message: 'You must be staff to access this page.' });
 };
 
-// Export both functions so other files can import them with:
-//   const { isAuthenticated, isStaff } = require('./path/to/this/file');
-module.exports = { isAuthenticated, isStaff };
+// Allows only logged-in administrators through (staff who may also waive fines).
+// An administrator is always a staff account, so an ordinary staff member,
+// a member and a logged-out visitor are all turned away.
+const isAdmin = (req, res, next) => {
+  // All three must be true:
+  //   - userId: the user is logged in
+  //   - isStaff: the account is a staff account
+  //   - isAdmin: the staff account has the administrator flag (set by the login route)
+  if (req.session && req.session.userId && req.session.isStaff && req.session.isAdmin) return next();
+
+  // 403 Forbidden = "you are not allowed to do this".
+  return res.status(403).json({ message: 'You must be an administrator to do this.' });
+};
+
+// Export the functions so other files can import them with:
+//   const { isAuthenticated, isStaff, isAdmin } = require('./path/to/this/file');
+module.exports = { isAuthenticated, isStaff, isAdmin };

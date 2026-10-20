@@ -3,7 +3,7 @@
 -- Run order:  schema.sql  ->  seed_accounts.sql  ->  trigger_overdue_fine.sql  ->  this file
 -- Every account here uses the password  testpass123  (same bcrypt hash as seed_accounts.sql).
 -- Safe to run again: the RESET section clears the sample rows first
--- (it keeps the two accounts from seed_accounts.sql: staff@test.com and testmember).
+-- (it keeps the three accounts from seed_accounts.sql: staff@test.com, admin@test.com and testmember).
 -- Dates are relative to today (CURDATE()), so overdue/not-due stay correct whenever it runs.
 -- =====================================================================
 USE library;
@@ -26,7 +26,7 @@ DELETE FROM CatalogItem;
 DELETE FROM Author;
 DELETE FROM Publisher;
 DELETE FROM Member WHERE Username <> 'testmember';
-DELETE FROM Staff  WHERE Email <> 'staff@test.com';
+DELETE FROM Staff  WHERE Email NOT IN ('staff@test.com', 'admin@test.com');
 
 -- =====================================================================
 -- 1. Member types and staff

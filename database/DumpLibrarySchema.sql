@@ -611,6 +611,7 @@ CREATE TABLE `staff` (
   `Email` varchar(100) NOT NULL,
   `Password_hash` varchar(255) NOT NULL,
   `Is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `Is_admin` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`Staff_id`),
   UNIQUE KEY `uq_staff_email` (`Email`),
   CONSTRAINT `ck_staff_email_format` CHECK (regexp_like(`Email`,_utf8mb4'^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$')),

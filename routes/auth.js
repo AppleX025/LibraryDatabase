@@ -31,9 +31,11 @@ router.post('/login', async (req, res) => {
     // never pasted into the SQL (prevents SQL injection).
     // "Staff_id AS id" renames the column so staff and member results
     // have the same shape (id, Password_hash, Is_active).
+    // Is_admin is read too: it is 1 for an administrator (staff who may also
+    // waive fines) and 0 for ordinary staff. Members have no such column.
     // db.execute returns [rows, fields]; we only need the rows.
     let [rows] = await db.execute(
-      'SELECT Staff_id AS id, Password_hash, Is_active FROM Staff WHERE Email = ? LIMIT 1',
+      'SELECT Staff_id AS id, Password_hash, Is_active, Is_admin FROM Staff WHERE Email = ? LIMIT 1',
       [username]);
 
     // Step 2: no staff match, so look for a Member by username OR email.
@@ -64,9 +66,16 @@ router.post('/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.isStaff = isStaff;
 
-    // Tell login.html it worked; the page uses isStaff to pick staff.html
-    // or account.html.
-    res.json({ message: 'Logged in.', isStaff });
+    // An administrator is a staff account whose Is_admin flag is set.
+    // "isStaff &&" keeps a member from ever counting as an administrator,
+    // and "user.Is_admin ? true : false" turns the database's 1 or 0 into true or false.
+    const isAdmin = isStaff && user.Is_admin ? true : false;
+    req.session.isAdmin = isAdmin;
+
+    // Tell login.html it worked; the page uses isStaff to choose where to
+    // send the visitor next. isAdmin is included so a page can show or hide
+    // admin-only buttons.
+    res.json({ message: 'Logged in.', isStaff, isAdmin });
   } catch (err) {
     // Log the real error in the terminal, but send the browser a vague
     // message so internal details aren't leaked.
@@ -85,9 +94,10 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /me
-// Tells a page who is visiting: are they logged in, and are they staff?
-// Pages call this when they load, so they can show "Login" or "Log out"
-// and send visitors away from staff-only pages.
+// Tells a page who is visiting: are they logged in, are they staff, and are
+// they an administrator?
+// Pages call this when they load, so they can show "Login" or "Log out",
+// send visitors away from staff-only pages, and hide admin-only buttons.
 // It always answers with a normal response, even for logged-out visitors,
 // because "not logged in" is a valid answer, not an error.
 router.get('/me', (req, res) => {
@@ -99,9 +109,13 @@ router.get('/me', (req, res) => {
   // For a logged-out visitor it is missing, so this becomes false.
   const isStaff = req.session.isStaff ? true : false;
 
-  // Send both answers back as JSON, e.g. { "loggedIn": true, "isStaff": false }.
-  // { loggedIn, isStaff } is shorthand for { loggedIn: loggedIn, isStaff: isStaff }.
-  res.json({ loggedIn, isStaff });
+  // isAdmin was saved at login as well: true only for an administrator.
+  // It is missing for members and logged-out visitors, so it becomes false.
+  const isAdmin = req.session.isAdmin ? true : false;
+
+  // Send the answers back as JSON, e.g. { "loggedIn": true, "isStaff": true, "isAdmin": false }.
+  // { loggedIn, isStaff, isAdmin } is shorthand for { loggedIn: loggedIn, isStaff: isStaff, ... }.
+  res.json({ loggedIn, isStaff, isAdmin });
 });
 
 // Export the router so app.js can mount it with app.use('/', require('./routes/auth'))
