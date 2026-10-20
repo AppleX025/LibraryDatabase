@@ -35,6 +35,9 @@
         <button type="submit">Log in</button>
       </form>
 
+      <!-- Searching the catalog does not need an account -->
+      <p class="muted"><a href="/search.html">Back to search</a></p>
+
       <!-- Empty paragraph where login errors are displayed.
            login.css shows it as a red box only when it has text. -->
       <p id="message"></p>
@@ -68,9 +71,9 @@
       if (res.ok) {
         // res.ok is true for 2xx status codes, meaning login succeeded.
         // The server has already stored the session; the browser keeps the
-        // session cookie automatically. Send staff and members to
-        // different landing pages.
-        window.location.href = data.isStaff ? '/catalog-admin.html' : '/account.html';
+        // session cookie automatically. Staff land on the catalog page and members
+        // on the search page; both show the full menu for their role.
+        window.location.href = data.isStaff ? '/catalog-admin.html' : '/search.html';
       } else {
         // Login failed (wrong password, inactive account, etc.).
         // Show the server's error message under the form.

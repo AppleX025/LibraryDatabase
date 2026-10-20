@@ -88,9 +88,10 @@ app.use('/', require('./routes/holds'));
 // ---------------------------------------------------------------------
 // Simple test routes
 // ---------------------------------------------------------------------
-// Home address: just proves the server is up.
+// Home address: the app starts at the catalog search, which anyone can use
+// without logging in. (The server itself answers at /test-db, below.)
 app.get('/', (req, res) => {
-    res.send('Library Database Server is running!');
+    res.redirect('/search.html');
 });
 
 // /test-db: runs a tiny query to prove the database connection works.
