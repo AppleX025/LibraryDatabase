@@ -1,7 +1,7 @@
 -- =====================================================================
 -- sample_data.sql  --  realistic fake data for development and demos
 -- Run order:  schema.sql  ->  seed_accounts.sql  ->  trigger_overdue_fine.sql  ->  this file
--- Every account here uses the password  testpass123  (same bcrypt hash as seed_accounts.sql).
+-- Every account here uses the password  testpass123  (same password hash as seed_accounts.sql).
 -- Safe to run again: the RESET section clears the sample rows first
 -- (it keeps the three accounts from seed_accounts.sql: staff@test.com, admin@test.com and testmember).
 -- Dates are relative to today (CURDATE()), so overdue/not-due stay correct whenever it runs.
@@ -47,7 +47,7 @@ ON DUPLICATE KEY UPDATE Max_loans       = new_type.Max_loans,
 -- A second staff member (used as the person who checks items back IN).
 INSERT INTO Staff (First_name, Last_name, Email, Password_hash) VALUES
     ('Maria', 'Lopez', 'librarian@test.com',
-     '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa');
+     'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');
 
 -- Handy shortcuts for the staff IDs (session variables, used in the loan inserts below)
 SET @staff_out = (SELECT Staff_id FROM Staff WHERE Email = 'staff@test.com');
@@ -58,11 +58,11 @@ SET @staff_in  = (SELECT Staff_id FROM Staff WHERE Email = 'librarian@test.com')
 -- =====================================================================
 INSERT INTO Member (Member_type_id, Username, First_name, Last_name, Email, Phone, City, State, Zip_code, Password_hash)
 VALUES
- ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'alice_r', 'Alice', 'Rivera',  'alice@test.com', '713-555-0101', 'Houston', 'TX', '77004', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa'),
- ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'bob_m',   'Bob',   'Martin',  'bob@test.com',   '713-555-0102', 'Houston', 'TX', '77005', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa'),
- ((SELECT Member_type_id FROM MemberType WHERE Type_name='Faculty'),   'carla_f', 'Carla', 'Fernandez','carla@test.com', '713-555-0103', 'Houston', 'TX', '77004', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa'),
- ((SELECT Member_type_id FROM MemberType WHERE Type_name='Alumni'),    'dan_c',   'Dan',   'Chen',    'dan@test.com',   '713-555-0104', 'Katy',    'TX', '77449', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa'),
- ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'eva_s',   'Eva',   'Singh',   'eva@test.com',   '713-555-0105', 'Houston', 'TX', '77023', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa');
+ ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'alice_r', 'Alice', 'Rivera',  'alice@test.com', '713-555-0101', 'Houston', 'TX', '77004', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA=='),
+ ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'bob_m',   'Bob',   'Martin',  'bob@test.com',   '713-555-0102', 'Houston', 'TX', '77005', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA=='),
+ ((SELECT Member_type_id FROM MemberType WHERE Type_name='Faculty'),   'carla_f', 'Carla', 'Fernandez','carla@test.com', '713-555-0103', 'Houston', 'TX', '77004', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA=='),
+ ((SELECT Member_type_id FROM MemberType WHERE Type_name='Alumni'),    'dan_c',   'Dan',   'Chen',    'dan@test.com',   '713-555-0104', 'Katy',    'TX', '77449', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA=='),
+ ((SELECT Member_type_id FROM MemberType WHERE Type_name='Student'),   'eva_s',   'Eva',   'Singh',   'eva@test.com',   '713-555-0105', 'Houston', 'TX', '77023', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');
 
 -- A library employee who also borrows: a member of type 'Staff', linked to her Staff record (Staff_id).
 -- (Different email from her staff login, so the login form finds the right account.)
@@ -70,7 +70,7 @@ INSERT INTO Member (Member_type_id, Staff_id, Username, First_name, Last_name, E
 VALUES ((SELECT Member_type_id FROM MemberType WHERE Type_name='Staff'),
         (SELECT Staff_id FROM Staff WHERE Email='librarian@test.com'),
         'maria_staff', 'Maria', 'Lopez', 'maria.member@test.com',
-        '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa');
+        'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');
 
 SET @testmember = (SELECT Member_id FROM Member WHERE Username = 'testmember');
 SET @alice = (SELECT Member_id FROM Member WHERE Username = 'alice_r');

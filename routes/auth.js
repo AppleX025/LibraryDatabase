@@ -3,11 +3,14 @@
 // app.js mounts this router at '/', so these become:
 //   POST /login   and   POST /logout
 
-// Creates a mini-app that holds just these routes
-const router = require('express').Router();
+// Our own small router (lib/router.js)
+const { Router } = require('../lib/router');
 
-// bcrypt compares a typed password against a stored hash
-const bcrypt = require('bcrypt');
+// Creates a mini-app that holds just these routes
+const router = Router();
+
+// verifyPassword compares a typed password against a stored hash (lib/password.js)
+const { verifyPassword } = require('../lib/password');
 
 // MySQL connection pool from config/db.js (promise version)
 const db = require('../config/db');
@@ -17,11 +20,17 @@ const db = require('../config/db');
 // Called by the fetch() in login.html with { username, password } as JSON.
 
 router.post('/login', async (req, res) => {
-  // try/catch so any database or bcrypt error returns a clean 500
+  // try/catch so any database or hashing error returns a clean 500
   // response instead of leaving the request hanging.
   try {
-    // express.json() in app.js parsed the request body into req.body
+    // The server (lib/app.js) parsed the request body into req.body
     const { username, password } = req.body; // field can hold a username or an email
+
+    // Both must be text. A missing or odd value (for example an empty request, or a
+    // number) cannot be a real login, and the database search below needs text.
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ message: 'Enter your username and password.' });
+    }
 
     // Assume staff first. This flips to false if no staff account matches.
     let isStaff = true;
@@ -53,16 +62,16 @@ router.post('/login', async (req, res) => {
     // Reject the login if ANY of these is true:
     //   - no account was found
     //   - the account is deactivated (Is_active is 0)
-    //   - the password doesn't match the stored bcrypt hash
+    //   - the password doesn't match the stored hash
     // One generic message for all three cases, so an attacker can't tell
     // whether a username exists. 401 = authentication failed.
-    if (!user || !user.Is_active || !(await bcrypt.compare(password, user.Password_hash))) {
+    if (!user || !user.Is_active || !(await verifyPassword(password, user.Password_hash))) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
-    // Login succeeded: store identity in the session. express-session
-    // saves this on the server and gives the browser a cookie that points
-    // to it. isAuthenticated and isStaff in the middleware read these values.
+    // Login succeeded: store identity in the session. The session step
+    // (lib/session.js) saves this on the server and gives the browser a
+    // cookie that points to it. isAuthenticated and isStaff in the middleware read these values.
     req.session.userId = user.id;
     req.session.isStaff = isStaff;
 

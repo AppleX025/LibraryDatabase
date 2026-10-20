@@ -1,13 +1,14 @@
 {
-  "name": "library-database", 
+  "name": "library-database",
   "version": "1.0.0",
   "private": true,
-  "scripts": {"start": "node app.js"}, 
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "dotenv": "^18.0.7",
-    "express": "^5.3.0",
-    "express-session": "^1.19.0",
     "mysql2": "^3.24.5"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

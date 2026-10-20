@@ -1,20 +1,26 @@
 // =====================================================================
 // app.js
 // The starting point of the web app. It loads the settings, sets up the
-// tools Express needs (reading form data, sessions, static pages),
-// plugs in the route files, and starts listening for requests.
+// tools every request needs (static pages, sessions), plugs in the route
+// files, and starts listening for requests.
 // Run it with:  npm start
+//
+// The web server itself is our own small one in lib/ (it uses only the tools
+// that come with Node.js): lib/app.js builds the server, lib/router.js matches
+// addresses to routes, lib/static.js sends the pages in public/, lib/session.js
+// remembers who is logged in, and lib/password.js checks passwords.
 // =====================================================================
 
 // Load the settings from the .env file (DB_HOST, DB_USER, PORT, ...)
 // into process.env so the rest of the code can read them.
-require('dotenv').config();
+// On Azure there is no .env file; the settings come from the app settings.
+require('./lib/env').loadEnv();
 
-// Libraries this file uses
-const express = require('express');             // the web framework
-const session = require('express-session');     // remembers who is logged in between requests
-const bcrypt = require('bcrypt');               // password checking (currently only used in routes/auth.js)
-const db = require('./config/db');              // the MySQL connection pool
+// Parts of our own server that this file uses
+const { createApp } = require('./lib/app');          // builds the web server
+const { serveStatic } = require('./lib/static');     // sends the files in public/
+const { createSession } = require('./lib/session');  // remembers who is logged in between requests
+const db = require('./config/db');                   // the MySQL connection pool
 
 // Safety nets: if something fails and nobody catches it, print the reason
 // in the terminal instead of the app quietly closing.
@@ -27,31 +33,31 @@ process.on('unhandledRejection', (err) => {
 });
 
 // Create the app, and pick the port: the PORT from .env, or 3000 if it is missing.
-const app = express();
+const app = createApp();
 const PORT = process.env.PORT || 3000;
 
 // ---------------------------------------------------------------------
-// Middleware: small helpers that run on every request, in this order
+// Steps that run on every request, in this order
+// (reading the data a page sends with a request is done by the server itself)
 // ---------------------------------------------------------------------
-// Read data sent by HTML forms (name=value pairs)
-app.use(express.urlencoded({ extended: true }));
-// Read data sent as JSON (what our pages send with fetch)
-app.use(express.json());
-
-// Sessions: after login, the browser carries a cookie that points to
-// the user's session (userId, isStaff). SESSION_SECRET signs that cookie.
-// If SESSION_SECRET is missing from the .env file, the code falls back to
-// 'fallback_secret'. That is fine for local testing only: a real server must
-// set its own secret, because anyone who knows it can forge a login cookie.
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback_secret',
-  resave: false,              // do not re-save a session that did not change
-  saveUninitialized: false    // do not create sessions for visitors who never log in
-}));
-
 // Serve every file in the public/ folder as a normal web page
 // (for example public/login.html is reached at /login.html).
-app.use(express.static('public'));
+// This comes first so pages and stylesheets never need a session.
+app.use(serveStatic('public'));
+
+// Sessions: after login, the browser carries a cookie that points to
+// the user's session (userId, isStaff, isAdmin). SESSION_SECRET signs that cookie.
+// There is no fallback secret: if SESSION_SECRET is missing, the app refuses
+// to start (with a message saying what to add), because anyone who knows the
+// secret can forge a login cookie.
+let sessionStep;
+try {
+  sessionStep = createSession({ secret: process.env.SESSION_SECRET });
+} catch (err) {
+  console.error(err.message);   // says exactly what to add to the .env file
+  process.exit(1);              // stop here: a server without sessions would be broken
+}
+app.use(sessionStep);
 
 // ---------------------------------------------------------------------
 // Route files: each one handles a group of addresses
@@ -73,7 +79,7 @@ app.use('/api/circulation', require('./routes/circulation'));
 
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
-   app.use('/', require('./routes/holds'));
+app.use('/', require('./routes/holds'));
 
 // ---------------------------------------------------------------------
 // Simple test routes

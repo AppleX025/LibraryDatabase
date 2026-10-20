@@ -1,6 +1,6 @@
 // routes/holds.js - Area C: place, list, cancel holds + staff hold list
-const express = require('express');
-const router = express.Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 const db = require('../config/db');
 
 // Juan's shared login checks (middleware/auth.js)

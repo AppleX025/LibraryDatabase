@@ -1,4 +1,5 @@
-const router = require('express').Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 const db = require('../config/db');
 
 // GET /fines

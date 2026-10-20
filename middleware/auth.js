@@ -13,7 +13,7 @@
 
 // Allows any logged-in user (member or staff) through.
 const isAuthenticated = (req, res, next) => {
-  // req.session exists because express-session is set up in app.js.
+  // req.session exists because the session step (lib/session.js) is set up in app.js.
   // userId is only set after a successful login, so if it's missing,
   // the visitor isn't logged in.
   // The `req.session &&` check avoids an error if the session is undefined.

@@ -1,5 +1,6 @@
 // Checkpoint 3, Role B — staff-only catalog administration.
-const router = require('express').Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 const db = require('../config/db');
 const { isStaff } = require('../middleware/auth');
 router.use(isStaff);

@@ -1,5 +1,5 @@
-const express = require('express');
-const router = express.Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 const db = require('../config/db');
 
 // Search catalog by title or author, optional category filter.

@@ -24,7 +24,8 @@
 // =====================================================================
 
 // Express's Router: a small "mini-app" that holds a group of routes.
-const router = require('express').Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 
 // The database connection pool (config/db.js). db.query(...) runs one SQL
 // statement; db.getConnection() borrows a single connection for several.

@@ -9,7 +9,8 @@ const mysql = require('mysql2');
 
 // Loads the .env file into process.env so the DB_* values below are available.
 // app.js also calls this, but keeping it here means this file works on its own.
-require('dotenv').config();
+// (loadEnv is our own small .env reader, lib/env.js.)
+require('../lib/env').loadEnv();
 
 // A "pool" keeps several database connections open and reuses them,
 // instead of opening a new connection for every request (which is slow).
@@ -18,6 +19,12 @@ const pool = mysql.createPool({
     user: process.env.DB_USER,         // MySQL username
     password: process.env.DB_PASS,     // MySQL password (the .env variable must be named DB_PASS exactly)
     database: process.env.DB_NAME,     // Which database/schema to use by default
+
+    // Encrypted connection. Azure's MySQL server normally refuses unencrypted
+    // connections, so hosted settings add DB_SSL=true. Locally the setting is
+    // missing, and the connection stays as it was (no encryption needed on one computer).
+    // rejectUnauthorized makes the app check that the server really is who it says it is.
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
 
     // If all connections are busy, wait in line for one to free up
     // instead of throwing an error immediately.

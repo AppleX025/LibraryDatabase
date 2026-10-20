@@ -20,4 +20,4 @@ ALTER TABLE Staff
 -- Step 2: the test administrator. INSERT IGNORE skips it if the email already exists.
 INSERT IGNORE INTO Staff (First_name, Last_name, Email, Password_hash, Is_admin)
 VALUES ('Test', 'Admin', 'admin@test.com',
-        '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa', TRUE);
+        'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==', TRUE);

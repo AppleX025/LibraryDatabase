@@ -23,9 +23,9 @@ ON DUPLICATE KEY UPDATE Max_loans       = new_type.Max_loans,
 -- Two staff logins. Both can check items in and out and take payment on fines;
 -- only the administrator (Is_admin = TRUE) can also waive a fine.
 INSERT IGNORE INTO Staff (First_name, Last_name, Email, Password_hash, Is_admin)
-VALUES ('Test', 'Staff', 'staff@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa', FALSE),
-       ('Test', 'Admin', 'admin@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa', TRUE);
+VALUES ('Test', 'Staff', 'staff@test.com', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==', FALSE),
+       ('Test', 'Admin', 'admin@test.com', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==', TRUE);
 
 INSERT IGNORE INTO Member (Member_type_id, Username, First_name, Last_name, Email, Password_hash)
 VALUES ((SELECT Member_type_id FROM MemberType WHERE Type_name = 'Student'),
-        'testmember', 'Test', 'Member', 'member@test.com', '$2b$10$XU20uDDaEmPh.e0A7NAYleCBjDkOFV.v/5YNHoXU/gOZZ8EClaiRa');
+        'testmember', 'Test', 'Member', 'member@test.com', 'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');

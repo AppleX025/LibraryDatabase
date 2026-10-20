@@ -7,7 +7,8 @@
 // =====================================================================
 
 // Express's Router: a small "mini-app" that holds a group of routes.
-const router = require('express').Router();
+const { Router } = require('../lib/router');   // our own small router (lib/router.js)
+const router = Router();
 
 // The database connection (a pool of MySQL connections set up in config/db.js).
 const db = require('../config/db');
