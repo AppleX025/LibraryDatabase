@@ -21,11 +21,11 @@ router.post('/api/holds', isAuthenticated, membersOnly, async (req, res) => {
     const itemId = Number(req.body.itemId);
     if (!itemId) return res.status(400).json({ error: 'Missing item.' });
 
-    const [items] = await db.query('SELECT Item_id FROM catalogitem WHERE Item_id = ?', [itemId]);
+    const [items] = await db.query('SELECT Item_id FROM CatalogItem WHERE Item_id = ?', [itemId]);
     if (!items.length) return res.status(404).json({ error: 'Item not found.' });
 
     await db.query(
-      "INSERT INTO hold (Item_id, Member_id, Status) VALUES (?, ?, 'Active')",
+      "INSERT INTO Hold (Item_id, Member_id, Status) VALUES (?, ?, 'Active')",
       [itemId, req.session.userId]);
     res.json({ message: 'Hold placed.' });
   } catch (err) {
@@ -43,7 +43,7 @@ router.get('/api/my-holds', isAuthenticated, membersOnly, async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT h.Hold_id, ci.Title, h.Status, h.Hold_date, h.Expiry_date
-         FROM hold h JOIN catalogitem ci ON ci.Item_id = h.Item_id
+         FROM Hold h JOIN CatalogItem ci ON ci.Item_id = h.Item_id
         WHERE h.Member_id = ?
         ORDER BY h.Hold_date DESC`, [req.session.userId]);
     res.json(rows);
@@ -58,7 +58,7 @@ router.post('/api/holds/:id/cancel', isAuthenticated, membersOnly, async (req, r
   try {
     // Member_id in the WHERE stops people cancelling someone else's hold
     const [result] = await db.query(
-      `UPDATE hold SET Status = 'Cancelled'
+      `UPDATE Hold SET Status = 'Cancelled'
         WHERE Hold_id = ? AND Member_id = ? AND Status IN ('Active','Ready')`,
       [req.params.id, req.session.userId]);
     if (result.affectedRows === 0) {
@@ -76,7 +76,7 @@ router.get('/api/staff/holds/:itemId', isStaff, async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT h.Hold_id, h.Hold_date, m.Username, m.First_name, m.Last_name
-         FROM hold h JOIN member m ON m.Member_id = h.Member_id
+         FROM Hold h JOIN Member m ON m.Member_id = h.Member_id
         WHERE h.Item_id = ? AND h.Status = 'Active'
         ORDER BY h.Hold_date ASC`, [req.params.itemId]);
     res.json(rows);

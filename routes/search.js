@@ -12,25 +12,25 @@ router.get('/api/search', async (req, res) => {
     const sql = `
       SELECT ci.Item_id, ci.Title, ci.Item_type,
         (SELECT COUNT(*)
-           FROM copy c
+           FROM Copy c
           WHERE c.Item_id = ci.Item_id
             AND c.Status = 'available'
             AND c.Copy_id NOT IN (
-                  SELECT Reserved_copy_id FROM hold
+                  SELECT Reserved_copy_id FROM Hold
                    WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
         ) AS available_copies
-      FROM catalogitem ci
+      FROM CatalogItem ci
       WHERE (
               ci.Title LIKE ?
            OR ci.Item_id IN (
                 SELECT ba.Item_id
-                  FROM bookauthor ba
-                  JOIN author a ON a.Author_id = ba.Author_id
+                  FROM BookAuthor ba
+                  JOIN Author a ON a.Author_id = ba.Author_id
                  WHERE CONCAT(a.First_name, ' ', a.Last_name) LIKE ?)
            OR ci.Item_id IN (
                 SELECT pa.Item_id
-                  FROM paperauthor pa
-                  JOIN author a ON a.Author_id = pa.Author_id
+                  FROM PaperAuthor pa
+                  JOIN Author a ON a.Author_id = pa.Author_id
                  WHERE CONCAT(a.First_name, ' ', a.Last_name) LIKE ?)
             )
         AND (? = '' OR ci.Item_type = ?)
