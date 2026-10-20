@@ -541,22 +541,37 @@ router.post('/renew', isStaff, async (req, res) => {
 
 // ---------------------------------------------------------------------
 // GET /api/circulation/open-loans?member=<username or email>
-// What a member has out and when it is due, soonest first.
-// Staff look up any member with ?member=. A logged-in member always
-// sees their own loans (the ?member= value is ignored for them).
+// What is checked out and when it is due, soonest first (so overdue loans come first).
+// Staff: with ?member= they see that one member's loans; without it they see EVERY
+// open loan, each with the member's name. A logged-in member always sees only their
+// own loans (the ?member= value is ignored for them).
 // Reads the Member_Open_Loans view from database/circulation.sql.
 // This route only reads, so it uses db.query directly: no transaction needed.
 // ---------------------------------------------------------------------
 router.get('/open-loans', isAuthenticated, async (req, res) => {
     try {
-        let memberId;   // whose loans to show; decided below
+        let memberId;   // whose loans to show; decided below (stays undefined for "everyone")
 
         if (req.session.isStaff) {
-            // Staff: the member typed into the page's lookup box.
+            // Staff: the member typed into the page's lookup box, or nothing.
             // req.query holds the values after "?" in the address.
             const memberText = textField(req.query.member);
+
             if (!memberText) {
-                return res.status(400).json({ message: 'Enter a member username or email.' });
+                // No member given: show every open loan, with who has it.
+                // The view has no member name, so Member is joined on to add it.
+                // Oldest due date first, so the loans that are most overdue are at the top.
+                const [everyLoan] = await db.query(
+                    `SELECT v.Loan_id, v.title, v.item_type, v.barcode, v.loan_type,
+                            DATE_FORMAT(v.checkout_date, '%Y-%m-%d') AS checkout_date,
+                            DATE_FORMAT(v.due_date, '%Y-%m-%d') AS due_date,
+                            v.renewal_count, v.overdue_days,
+                            CONCAT(m.First_name, ' ', m.Last_name) AS member_name,
+                            m.Username AS member_username
+                       FROM Member_Open_Loans v
+                       JOIN Member m ON m.Member_id = v.Member_id
+                      ORDER BY v.due_date, v.Loan_id`);
+                return res.json({ all: true, member: 'All members', loans: everyLoan });
             }
 
             const [members] = await db.query(
@@ -591,7 +606,7 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
               ORDER BY due_date`,
             [memberId]);
 
-        res.json({ member: `${member.First_name} ${member.Last_name}`, loans });
+        res.json({ all: false, member: `${member.First_name} ${member.Last_name}`, loans });
     } catch (err) {
         console.error('Open loans failed:', err);
         res.status(500).json({ message: 'Could not load open loans. Please try again.' });

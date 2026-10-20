@@ -27,19 +27,23 @@
 
     <main>
         <h1>Open loans</h1>
-        <!-- Staff see a lookup form; a member sees their own loans straight away. -->
+        <!-- Staff see every open loan, with a box to narrow it to one member;
+             a member sees their own loans straight away. -->
         <p id="summary" class="muted">Loading...</p>
 
         <!-- Red box for errors (unknown member, not logged in). Hidden until needed. -->
         <div id="notice" class="error" role="status" aria-live="polite" hidden></div>
 
         <section class="panel">
-            <!-- Only shown to staff (the script un-hides it). -->
+            <!-- Only shown to staff (the script un-hides it). The box is optional:
+                 empty means every member's loans. -->
             <form id="lookupForm" hidden>
-                <label for="member">Member username or email</label>
-                <input id="member" name="member" placeholder="e.g. eva_s" autocomplete="off" required>
+                <label for="member">Member username or email (leave empty to see everyone)</label>
+                <input id="member" name="member" placeholder="e.g. eva_s" autocomplete="off">
                 <div class="actions">
                     <button type="submit">Show loans</button>
+                    <!-- Clears the box and goes back to everyone's loans -->
+                    <button type="button" id="showAll" class="secondary">Show all</button>
                 </div>
             </form>
 
@@ -47,6 +51,8 @@
                 <table>
                     <thead>
                         <tr>
+                            <!-- Only shown when the table lists every member's loans -->
+                            <th id="memberHeader" hidden>Member</th>
                             <th>Title</th>
                             <th>Type</th>
                             <th>Barcode</th>
@@ -67,8 +73,8 @@
     <script>
         // How this page works:
         //   - On opening, it asks the server who is logged in (GET /me).
-        //   - Staff get a lookup box: type a member, and the table fills with
-        //     what that member has out.
+        //   - Staff see every open loan at once, with a Member column. The lookup box
+        //     narrows the table to one member; "Show all" goes back to everyone.
         //   - A member skips the box and sees their own loans straight away.
         //   - Either way the data comes from GET /api/circulation/open-loans
         //     (routes/circulation.js). The server decides whose loans to send, so a
@@ -79,6 +85,7 @@
         const notice = document.getElementById('notice');
         const lookupForm = document.getElementById('lookupForm');
         const rowsContainer = document.getElementById('rows');
+        const memberHeader = document.getElementById('memberHeader');   // the "Member" column heading
 
         // Makes text safe to put inside HTML, so a title containing "<" cannot break the page.
         // (Setting textContent stores it as plain text; reading innerHTML gives it back
@@ -96,7 +103,8 @@
         }
 
         // Asks the server for the open loans and fills the table.
-        // memberText is only sent by staff; a member always gets their own loans.
+        // memberText is only sent by staff. Left empty, staff get every member's loans;
+        // a member always gets their own loans.
         async function loadLoans(memberText) {
             // Clear any old error and old rows before loading new ones.
             notice.hidden = true;
@@ -117,7 +125,11 @@
                 return;
             }
 
-            // data looks like { member: "Eva Singh", loans: [ {...}, {...} ] }.
+            // data looks like { all: false, member: "Eva Singh", loans: [ {...}, {...} ] }.
+            // When data.all is true the list holds every member's loans, so the
+            // Member column is shown to say whose each loan is.
+            memberHeader.hidden = !data.all;
+
             // Add one table row per open loan.
             for (const loan of data.loans) {
                 // Overdue loans say how many days late; the rest just say "On time".
@@ -129,7 +141,12 @@
                 // Text that came from people (titles, barcodes, ...) goes through escapeHtml.
                 // renewal_count and status are made by our own code, so they are safe as is.
                 const tr = document.createElement('tr');
+                // The Member cell exists only in the "everyone" view, to match the heading.
+                const memberCell = data.all
+                    ? `<td>${escapeHtml(loan.member_name)} (${escapeHtml(loan.member_username)})</td>`
+                    : '';
                 tr.innerHTML = `
+                    ${memberCell}
                     <td>${escapeHtml(loan.title)}</td>
                     <td>${escapeHtml(loan.item_type)}</td>
                     <td>${escapeHtml(loan.barcode)}</td>
@@ -142,10 +159,17 @@
                 rowsContainer.appendChild(tr);
             }
 
-            // The line above the table: who it is and how many items they have out.
-            summary.textContent = data.loans.length === 0
-                ? `${data.member} has nothing checked out.`
-                : `${data.member} has ${data.loans.length} item(s) out.`;
+            // The line above the table: who it is and how many items are out.
+            if (data.all) {
+                const overdue = data.loans.filter((loan) => loan.overdue_days > 0).length;
+                summary.textContent = data.loans.length === 0
+                    ? 'Nothing is checked out right now.'
+                    : `${data.loans.length} item(s) out across all members, ${overdue} overdue.`;
+            } else {
+                summary.textContent = data.loans.length === 0
+                    ? `${data.member} has nothing checked out.`
+                    : `${data.member} has ${data.loans.length} item(s) out.`;
+            }
         }
 
         // Staff: show the lookup form. Member: load their own loans. Logged out: say so.
@@ -158,17 +182,24 @@
                 showError('You must be logged in to see open loans.');
             } else if (me.isStaff) {
                 lookupForm.hidden = false;
-                summary.textContent = 'Enter a member to see what they have checked out.';
+                loadLoans();            // no member given: show everyone's open loans
             } else {
                 loadLoans();
             }
         }
 
-        // Staff pressed "Show loans" (or Enter): load that member's loans.
+        // Staff pressed "Show loans" (or Enter): load that member's loans,
+        // or everyone's if the box is empty.
         lookupForm.addEventListener('submit', (event) => {
             // Stop the normal form submit (a full page reload); loadLoans uses fetch instead.
             event.preventDefault();
             loadLoans(lookupForm.member.value.trim());
+        });
+
+        // "Show all": empty the box and go back to everyone's loans.
+        document.getElementById('showAll').addEventListener('click', () => {
+            lookupForm.member.value = '';
+            loadLoans();
         });
 
         // Decide what to show as soon as the page opens.
