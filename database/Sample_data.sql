@@ -72,6 +72,19 @@ VALUES ((SELECT Member_type_id FROM MemberType WHERE Type_name='Staff'),
         'maria_staff', 'Maria', 'Lopez', 'maria.member@test.com',
         'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');
 
+-- The two plain staff test logins (staff@test.com and admin@test.com) also get a linked member
+-- record, so they can place holds for themselves like any employee who borrows.
+-- Each member has a different email from the staff login, so the login form finds the right account.
+INSERT INTO Member (Member_type_id, Staff_id, Username, First_name, Last_name, Email, Password_hash)
+VALUES ((SELECT Member_type_id FROM MemberType WHERE Type_name='Staff'),
+        (SELECT Staff_id FROM Staff WHERE Email='staff@test.com'),
+        'staff_member', 'Test', 'Staff', 'staff.member@test.com',
+        'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA=='),
+       ((SELECT Member_type_id FROM MemberType WHERE Type_name='Staff'),
+        (SELECT Staff_id FROM Staff WHERE Email='admin@test.com'),
+        'admin_member', 'Test', 'Admin', 'admin.member@test.com',
+        'scrypt$16384$8$1$JG+7+zy280HD4QEEQ9q/2w==$iQaSC2GQcAYpn8DjB8cfTgOWH6USvJ8S4uerZHN6uzqA0tN5ktjwYkXldlw607IPaEntZ3fYrrJlj6r33hRkAA==');
+
 SET @testmember = (SELECT Member_id FROM Member WHERE Username = 'testmember');
 SET @alice = (SELECT Member_id FROM Member WHERE Username = 'alice_r');
 SET @bob   = (SELECT Member_id FROM Member WHERE Username = 'bob_m');

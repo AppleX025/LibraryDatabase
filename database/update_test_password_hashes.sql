@@ -23,4 +23,4 @@ UPDATE Staff
 
 UPDATE Member
    SET Password_hash = @hash
- WHERE Username IN ('testmember', 'alice_r', 'bob_m', 'carla_f', 'dan_c', 'eva_s', 'maria_staff');
+ WHERE Username IN ('testmember', 'alice_r', 'bob_m', 'carla_f', 'dan_c', 'eva_s', 'maria_staff', 'staff_member', 'admin_member');
