@@ -43,8 +43,7 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr><th>Title</th><th>Category</th><th>Available copies</th></tr>
-          </thead>
+<tr><th>Title</th><th>Category</th><th>Available copies</th><th></th></tr>          </thead>
           <tbody id="results"></tbody>
         </table>
       </div>
@@ -74,10 +73,31 @@
           td.textContent = value;
           tr.appendChild(td);
         }
+                // Place hold button (members only; the server checks login)
+        const actionTd = document.createElement('td');
+        const holdBtn = document.createElement('button');
+        holdBtn.textContent = 'Place hold';
+        holdBtn.addEventListener('click', () => placeHold(item.Item_id));
+        actionTd.appendChild(holdBtn);
+        tr.appendChild(actionTd);
+
         tbody.appendChild(tr);
       }
     }
-
+    // Asks the server to place a hold on one item
+    async function placeHold(itemId) {
+      const message = document.getElementById('message');
+      const res = await fetch('/api/holds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      });
+      // Not logged in -> go to login
+      if (res.status === 401) { location.href = '/login.html'; return; }
+      const data = await res.json();
+      message.textContent = data.message || data.error;
+    }
+    
     document.getElementById('go').addEventListener('click', search);
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
     search();
