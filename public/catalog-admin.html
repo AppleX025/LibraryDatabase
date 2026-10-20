@@ -140,7 +140,9 @@
             <div class="form-grid">
               <label>
                 Barcode
-                <input name="Barcode" maxlength="20" required>
+                <!-- Format LIB- and four digits, e.g. LIB-0001. The pattern accepts lower-case letters too
+                     (the server saves the barcode in upper case). The same rule is checked again on the server. -->
+                <input name="Barcode" maxlength="8" placeholder="LIB-0001" pattern="[Ll][Ii][Bb]-[0-9]{4}" title="LIB- and four digits, for example LIB-0001" required>
               </label>
 
               <label>

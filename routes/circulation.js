@@ -76,7 +76,7 @@ function textField(value) {
 router.post('/checkout', isStaff, async (req, res) => {
     // req.body holds what the page sent. "?." means: if there is no body at all,
     // give undefined instead of crashing (textField then turns it into '').
-    const barcode = textField(req.body?.barcode);
+    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
     const memberText = textField(req.body?.member);
     const staffId = req.session.userId;   // the staff member processing the checkout
 
@@ -310,7 +310,7 @@ router.post('/checkout', isStaff, async (req, res) => {
 // Staff only.
 // ---------------------------------------------------------------------
 router.post('/return', isStaff, async (req, res) => {
-    const barcode = textField(req.body?.barcode);
+    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
     const staffId = req.session.userId;   // the staff member checking the item in
 
     if (!barcode) {
@@ -431,7 +431,7 @@ router.post('/return', isStaff, async (req, res) => {
 // hold on the item. Staff only.
 // ---------------------------------------------------------------------
 router.post('/renew', isStaff, async (req, res) => {
-    const barcode = textField(req.body?.barcode);
+    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
 
     if (!barcode) {
         return res.status(400).json({ message: 'Enter the copy barcode.' });
