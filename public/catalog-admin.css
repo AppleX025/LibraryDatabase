@@ -53,6 +53,15 @@ nav {
   align-items: center;
 }
 
+/* The circulation pages (checkout, return, renew, open loans) put four links
+   plus Log out in the header. Letting the group wrap onto a second line keeps
+   it from running off the edge of a phone screen. */
+header nav {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 15px;
+}
+
 /* ---------- Page content area ---------- */
 main {
   max-width: 1100px;

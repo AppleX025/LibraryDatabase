@@ -13,6 +13,10 @@
       <span> / Catalog Search</span>
     </div>
     <nav>
+      <!-- Links to the holds pages; the page you are on is marked with aria-current -->
+      <a href="/search.html" aria-current="page">Search</a>
+      <a href="/my-holds.html">My Holds</a>
+      <a href="/staff-holds.html">Staff Hold List</a>
       <!-- auth-nav.js puts a Login link or Log out button here -->
       <span id="authLink"></span>
     </nav>
@@ -43,7 +47,8 @@
       <div class="table-scroll">
         <table>
           <thead>
-<tr><th>Title</th><th>Category</th><th>Available copies</th><th></th></tr>          </thead>
+            <tr><th>Title</th><th>Category</th><th>Available copies</th><th></th></tr>
+          </thead>
           <tbody id="results"></tbody>
         </table>
       </div>

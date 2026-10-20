@@ -1,27 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>My Holds</title>
-  <link rel="stylesheet" href="search.css">
+  <!-- The shared look for the search and holds pages (header, card, table, buttons) -->
+  <link rel="stylesheet" href="/search.css">
 </head>
 <body>
-  <nav>
-    <a href="/search.html">Search</a> |
-    <a href="/my-holds.html">My Holds</a> |
-    <a href="/staff-holds.html">Staff Hold List</a> |
-    <span id="authLink"></span>
-  </nav>
-  <script src="/auth-nav.js"></script>
+  <!-- Top bar. The links go to the three holds-related pages; the page you are
+       on is marked with aria-current so the stylesheet can underline it.
+       auth-nav.js adds the Login link or Log out button inside <span id="authLink">. -->
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / My Holds</span>
+    </div>
+    <nav>
+      <a href="/search.html">Search</a>
+      <a href="/my-holds.html" aria-current="page">My Holds</a>
+      <a href="/staff-holds.html">Staff Hold List</a>
+      <span id="authLink"></span>
+    </nav>
+  </header>
 
-  <h1>My Holds</h1>
-  <p id="message"></p>
-  <table>
-    <thead>
-      <tr><th>Title</th><th>Status</th><th>Placed</th><th>Expires</th><th></th></tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
+  <main>
+    <h1>My Holds</h1>
+    <p class="muted">Items you are waiting for, and the ones that are ready for you to pick up.</p>
+
+    <!-- The white card that holds the table. #message shows "You have no holds."
+         or the result of pressing Cancel; it stays hidden while it is empty. -->
+    <section class="panel">
+      <p id="message"></p>
+
+      <!-- The scroll wrapper lets a wide table scroll sideways on small screens
+           instead of breaking the page. -->
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Status</th><th>Placed</th><th>Expires</th><th></th></tr>
+          </thead>
+          <!-- Starts empty. The script adds one row per hold. -->
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
   <script>
     // Loads the logged-in member's holds and fills the table
@@ -68,5 +93,7 @@
     }
     load();
   </script>
+  <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+  <script src="/auth-nav.js"></script>
 </body>
 </html>

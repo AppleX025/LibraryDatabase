@@ -1,29 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Hold List (Staff)</title>
-  <link rel="stylesheet" href="search.css">
+  <!-- The shared look for the search and holds pages (header, card, table, buttons) -->
+  <link rel="stylesheet" href="/search.css">
 </head>
 <body>
-  <nav>
-    <a href="/search.html">Search</a> |
-    <a href="/my-holds.html">My Holds</a> |
-    <a href="/staff-holds.html">Staff Hold List</a> |
-    <span id="authLink"></span>
-  </nav>
-  <script src="/auth-nav.js"></script>
+  <!-- Top bar. The links go to the three holds-related pages; the page you are
+       on is marked with aria-current so the stylesheet can underline it.
+       auth-nav.js adds the Login link or Log out button inside <span id="authLink">. -->
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / Staff Hold List</span>
+    </div>
+    <nav>
+      <a href="/search.html">Search</a>
+      <a href="/my-holds.html">My Holds</a>
+      <a href="/staff-holds.html" aria-current="page">Staff Hold List</a>
+      <span id="authLink"></span>
+    </nav>
+  </header>
 
-  <h1>Waiting Holds</h1>
-  <p>Pick an item to see who is waiting, oldest first.</p>
-  <select id="item"></select>
-  <p id="message"></p>
-  <table>
-    <thead>
-      <tr><th>#</th><th>Member</th><th>Username</th><th>Placed</th></tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
+  <main>
+    <h1>Waiting Holds</h1>
+    <p class="muted">Pick an item to see who is waiting for it, oldest first.</p>
+
+    <section class="panel">
+      <!-- The dropdown of catalog items. The script fills it with one option per item. -->
+      <div class="toolbar">
+        <label for="item">Item</label>
+        <select id="item"></select>
+      </div>
+
+      <!-- "No one is waiting for this item." shows here; hidden while empty. -->
+      <p id="message"></p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Member</th><th>Username</th><th>Placed</th></tr>
+          </thead>
+          <!-- Starts empty. The script adds one row per waiting hold. -->
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
   <script>
     const sel = document.getElementById('item');
@@ -65,5 +91,7 @@
     }
     init();
   </script>
+  <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+  <script src="/auth-nav.js"></script>
 </body>
 </html>
