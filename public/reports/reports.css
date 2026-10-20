@@ -58,10 +58,14 @@ header a {
   color: white;
 }
 
-/* The group of controls on the right side of the header */
+/* The group of controls on the right side of the header.
+   The menu has many links for staff, so it wraps onto several rows on a narrow
+   screen instead of pushing the page wider. */
 header nav {
   display: flex;
-  gap: 15px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 15px;
   align-items: center;
 }
 

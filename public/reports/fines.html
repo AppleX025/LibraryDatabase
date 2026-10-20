@@ -29,6 +29,14 @@
              server refuses the request. -->
         <p id="summary">Loading...</p>
 
+        <!-- Links between the three reports; the one that is open is marked "active".
+             The look is in reports.css (.report-tabs). -->
+        <nav class="report-tabs" aria-label="Reports">
+            <a href="/reports/overdue.html">Overdue loans</a>
+            <a href="/reports/fines.html" class="active" aria-current="page">Unpaid fines</a>
+            <a href="/reports/borrowed.html">Most borrowed</a>
+        </nav>
+
         <!-- The white card that holds the table. The scroll wrapper lets a wide
              table scroll sideways on small screens instead of breaking the page. -->
         <section class="panel">
