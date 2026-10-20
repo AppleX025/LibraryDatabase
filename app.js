@@ -77,6 +77,10 @@ app.use('/api/reports', require('./routes/reports'));
 // /api/circulation/checkout. The pages are in public/circulation/.
 app.use('/api/circulation', require('./routes/circulation'));
 
+// Fines: the unpaid fines list and paying or waiving a fine (staff only). Every route in
+// routes/fines.js is reached under /api/fines. The page is public/fines-admin.html.
+app.use('/api/fines', require('./routes/fines'));
+
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
 app.use('/', require('./routes/holds'));
