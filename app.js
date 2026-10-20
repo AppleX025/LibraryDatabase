@@ -66,6 +66,11 @@ app.use('/api/catalog', require('./routes/catalog'));
 // public/reports/ (/reports/overdue.html is the page, /api/reports/overdue is its data).
 app.use('/api/reports', require('./routes/reports'));
 
+// Circulation: checkout, return, renew and open loans. Every route in
+// routes/circulation.js is reached under /api/circulation, for example
+// /api/circulation/checkout. The pages are in public/circulation/.
+app.use('/api/circulation', require('./routes/circulation'));
+
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
    app.use('/', require('./routes/holds'));

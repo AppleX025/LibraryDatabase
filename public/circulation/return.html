@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Return</title>
+    <!-- Adan's shared look (header, panel, form fields, buttons, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <style>
+        /* The four circulation links plus Log out do not fit on a phone,
+           so let them wrap onto a second line instead of running off the screen. */
+        header nav { flex-wrap: wrap; justify-content: flex-end; gap: 8px 15px; }
+    </style>
+</head>
+<body>
+    <!-- Top bar. auth-nav.js fills <span id="authLink"> with Login or Log out. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Return</span>
+        </div>
+        <nav>
+            <a href="/circulation/checkout.html">Checkout</a>
+            <a href="/circulation/return.html">Return</a>
+            <a href="/circulation/renew.html">Renew</a>
+            <a href="/circulation/open-loans.html">Open loans</a>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Return an item</h1>
+        <p class="muted">Scan or type the barcode of the copy being returned.</p>
+
+        <!-- Green on success, red (class="error") when something is wrong. Hidden until there is a message. -->
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <form id="returnForm">
+                <label for="barcode">Copy barcode</label>
+                <input id="barcode" name="barcode" placeholder="e.g. LIB-0002" autocomplete="off" required autofocus>
+                <div class="actions">
+                    <button id="submitButton" type="submit">Return</button>
+                    <button type="reset" class="secondary">Clear</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        // How this page works (same pattern as checkout.html, which has
+        // line-by-line notes):
+        //   1. Staff scan the returned copy's barcode.
+        //   2. The script sends it to POST /api/circulation/return, which closes
+        //      the open loan (return date + returning staff saved together).
+        //   3. The database then puts the copy back to 'available' and, if it
+        //      was late, adds the overdue fine. The server's message says if it
+        //      was late, the fine, and whether someone has a hold on the item.
+
+        // Grab the parts of the page the script needs to work with.
+        const form = document.getElementById('returnForm');
+        const notice = document.getElementById('notice');
+        const submitButton = document.getElementById('submitButton');
+
+        // Shows a message in the notice box: green normally, red when isError is true.
+        function showNotice(message, isError) {
+            notice.hidden = false;
+            notice.textContent = message;
+            notice.classList.toggle('error', isError);
+        }
+
+        // Only staff can return items. Warn right away instead of after the first try.
+        async function checkStaff() {
+            const response = await fetch('/me');
+            const me = await response.json();
+            if (!me.isStaff) {
+                showNotice('You must be logged in as staff to return items.', true);
+                submitButton.disabled = true;
+            }
+        }
+
+        // Runs on each scan (a scanner presses Enter, which submits the form).
+        form.addEventListener('submit', async (event) => {
+            // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
+            event.preventDefault();
+            // Grey out the button while waiting, so one return cannot be sent twice.
+            submitButton.disabled = true;
+
+            try {
+                // Send the barcode to the server and wait for its answer.
+                const response = await fetch('/api/circulation/return', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcode: form.barcode.value })
+                });
+                const data = await response.json();
+
+                // The server's message says what happened (late? fine? holds waiting?) or what went wrong.
+                // response.ok is false for error answers, so those show in red.
+                showNotice(data.message, !response.ok);
+
+                // Clear the barcode so the next returned item can be scanned straight away.
+                // (After an error it stays, so staff can see and fix what they typed.)
+                if (response.ok) {
+                    form.barcode.value = '';
+                }
+                form.barcode.focus();
+            } catch (err) {
+                // fetch itself failed: the server is not running or the network is down.
+                showNotice('Could not reach the server. Please try again.', true);
+            } finally {
+                // Whatever happened, make the button clickable again.
+                submitButton.disabled = false;
+            }
+        });
+
+        // Run the staff check as soon as the page opens.
+        checkStaff();
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

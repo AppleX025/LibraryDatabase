@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Open Loans</title>
+    <!-- Adan's shared look (header, panel, form fields, buttons, table, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <style>
+        /* The four circulation links plus Log out do not fit on a phone,
+           so let them wrap onto a second line instead of running off the screen. */
+        header nav { flex-wrap: wrap; justify-content: flex-end; gap: 8px 15px; }
+    </style>
+</head>
+<body>
+    <!-- Top bar. auth-nav.js fills <span id="authLink"> with Login or Log out. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Open loans</span>
+        </div>
+        <nav>
+            <a href="/circulation/checkout.html">Checkout</a>
+            <a href="/circulation/return.html">Return</a>
+            <a href="/circulation/renew.html">Renew</a>
+            <a href="/circulation/open-loans.html">Open loans</a>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Open loans</h1>
+        <!-- Staff see a lookup form; a member sees their own loans straight away. -->
+        <p id="summary" class="muted">Loading...</p>
+
+        <!-- Red box for errors (unknown member, not logged in). Hidden until needed. -->
+        <div id="notice" class="error" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <!-- Only shown to staff (the script un-hides it). -->
+            <form id="lookupForm" hidden>
+                <label for="member">Member username or email</label>
+                <input id="member" name="member" placeholder="e.g. eva_s" autocomplete="off" required>
+                <div class="actions">
+                    <button type="submit">Show loans</button>
+                </div>
+            </form>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Barcode</th>
+                            <th>Loan</th>
+                            <th>Checked out</th>
+                            <th>Due</th>
+                            <th>Renewals</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row per open loan. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // How this page works:
+        //   - On opening, it asks the server who is logged in (GET /me).
+        //   - Staff get a lookup box: type a member, and the table fills with
+        //     what that member has out.
+        //   - A member skips the box and sees their own loans straight away.
+        //   - Either way the data comes from GET /api/circulation/open-loans
+        //     (routes/circulation.js). The server decides whose loans to send, so a
+        //     member can never see someone else's, whatever they put in the address.
+
+        // Grab the parts of the page the script needs to work with.
+        const summary = document.getElementById('summary');
+        const notice = document.getElementById('notice');
+        const lookupForm = document.getElementById('lookupForm');
+        const rowsContainer = document.getElementById('rows');
+
+        // Makes text safe to put inside HTML, so a title containing "<" cannot break the page.
+        // (Setting textContent stores it as plain text; reading innerHTML gives it back
+        // with characters like < turned into &lt;.)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Shows an error in the red notice box.
+        function showError(message) {
+            notice.hidden = false;
+            notice.textContent = message;
+        }
+
+        // Asks the server for the open loans and fills the table.
+        // memberText is only sent by staff; a member always gets their own loans.
+        async function loadLoans(memberText) {
+            // Clear any old error and old rows before loading new ones.
+            notice.hidden = true;
+            rowsContainer.innerHTML = '';
+
+            // Build the address. encodeURIComponent makes the typed text safe to put
+            // in a URL (an email's "@", spaces, and so on).
+            const url = '/api/circulation/open-loans' +
+                (memberText ? '?member=' + encodeURIComponent(memberText) : '');
+            const response = await fetch(url);
+            const data = await response.json();
+
+            // Unknown member, not logged in, or a server problem: show the server's
+            // message and stop, because the loop below needs a list of loans.
+            if (!response.ok) {
+                showError(data.message);
+                summary.textContent = '';
+                return;
+            }
+
+            // data looks like { member: "Eva Singh", loans: [ {...}, {...} ] }.
+            // Add one table row per open loan.
+            for (const loan of data.loans) {
+                // Overdue loans say how many days late; the rest just say "On time".
+                // (overdue_days is worked out by the database view; it is 0 when not late.)
+                const status = loan.overdue_days > 0
+                    ? `Overdue ${loan.overdue_days} day(s)`
+                    : 'On time';
+
+                // Text that came from people (titles, barcodes, ...) goes through escapeHtml.
+                // renewal_count and status are made by our own code, so they are safe as is.
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(loan.title)}</td>
+                    <td>${escapeHtml(loan.item_type)}</td>
+                    <td>${escapeHtml(loan.barcode)}</td>
+                    <td>${escapeHtml(loan.loan_type)}</td>
+                    <td>${escapeHtml(loan.checkout_date)}</td>
+                    <td>${escapeHtml(loan.due_date)}</td>
+                    <td>${loan.renewal_count}</td>
+                    <td>${status}</td>
+                `;
+                rowsContainer.appendChild(tr);
+            }
+
+            // The line above the table: who it is and how many items they have out.
+            summary.textContent = data.loans.length === 0
+                ? `${data.member} has nothing checked out.`
+                : `${data.member} has ${data.loans.length} item(s) out.`;
+        }
+
+        // Staff: show the lookup form. Member: load their own loans. Logged out: say so.
+        async function start() {
+            const response = await fetch('/me');
+            const me = await response.json();
+
+            if (!me.loggedIn) {
+                summary.textContent = '';
+                showError('You must be logged in to see open loans.');
+            } else if (me.isStaff) {
+                lookupForm.hidden = false;
+                summary.textContent = 'Enter a member to see what they have checked out.';
+            } else {
+                loadLoans();
+            }
+        }
+
+        // Staff pressed "Show loans" (or Enter): load that member's loans.
+        lookupForm.addEventListener('submit', (event) => {
+            // Stop the normal form submit (a full page reload); loadLoans uses fetch instead.
+            event.preventDefault();
+            loadLoans(lookupForm.member.value.trim());
+        });
+
+        // Decide what to show as soon as the page opens.
+        start();
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>
