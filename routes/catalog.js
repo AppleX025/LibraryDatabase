@@ -163,14 +163,15 @@ router.put('/items/:id', async (req, res) => {
 router.post('/items/:id/copies', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
-    // Barcodes follow one format: LIB- and exactly four digits (LIB-0001).
+    // Barcodes follow one format: LIB- and four to eight digits (LIB-0001, LIB-123456).
+    // Eight digits allow up to a hundred million copies; the column holds up to 20 characters.
     // Typed in lower case (lib-0001) is accepted and saved in upper case, so the
     // same copy is never stored two ways and checkout finds it either way.
     const barcodeText = optionalText(req.body.Barcode);
     const barcode = barcodeText ? barcodeText.toUpperCase() : null;
     const condition = req.body.Condition;
     const shelf = optionalText(req.body.Shelf_location);
-    if (!barcode || !/^LIB-[0-9]{4}$/.test(barcode)) throw bad('Barcode must look like LIB-0001 (LIB- and four digits).');
+    if (!barcode || !/^LIB-[0-9]{4,8}$/.test(barcode)) throw bad('Barcode must look like LIB-0001 (LIB- and four to eight digits).');
     if (!['new','good','worn','damaged'].includes(condition)) throw bad('Select a valid copy condition.');
     if (shelf && shelf.length > 30) throw bad('Shelf location is too long.');
     const date = req.body.Date_acquired || new Date().toISOString().slice(0,10);
