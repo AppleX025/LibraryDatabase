@@ -60,11 +60,163 @@
     </main>
 
     <script>
-        // The script for this page goes here. It will:
-        //   1. ask the server who is logged in (GET /me), to know whether to show Waive;
-        //   2. load the unpaid fines (GET /api/fines) and fill the table;
-        //   3. send Pay (POST /api/fines/:id/pay) and Waive (POST /api/fines/:id/waive)
-        //      when a button is clicked, then reload the table.
+        // The table body, the summary line and the message box (ids are in the HTML above)
+        const rows    = document.getElementById('rows');
+        const summary = document.getElementById('summary');
+        const notice  = document.getElementById('notice');
+
+        let isAdmin = false;   // becomes true if the logged-in person is an administrator
+
+        // showMessage(text, isError): shows a line in the message box.
+        // Green by default; when isError is true, add the class 'error' (red).
+        function showMessage(text, isError) {
+            notice.textContent = text;
+            notice.hidden = false;                    // the box starts hidden
+            notice.className = isError ? 'error' : '';
+        }
+
+        // money(n): 9.99 -> '$9.99'.
+        // The server may send Amount as text (MySQL decimals often arrive that way),
+        // so Number() turns it into a real number first; toFixed(2) keeps two decimals.
+        function money(n) {
+            return '$' + Number(n).toFixed(2);
+        }
+
+        // readJson(response): reads the server's answer as an object.
+        // If the answer is not valid JSON (for example a page from a proxy in front
+        // of the server), it gives back an empty object, so the code that follows
+        // can still show its own message instead of crashing.
+        async function readJson(response) {
+            try {
+                return await response.json();
+            } catch (err) {
+                return {};
+            }
+        }
+
+        // addCell(tr, text, className): adds one <td> to a row and returns it.
+        // textContent (not innerHTML) is used so a name or title containing
+        // characters like "<" is shown as plain text and cannot break the page.
+        function addCell(tr, text, className) {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (className) td.className = className;
+            tr.appendChild(td);
+            return td;
+        }
+
+        // loadFines(): GET /api/fines, then draw one row per fine.
+        async function loadFines() {
+            let response;
+            let data;
+            try {
+                response = await fetch('/api/fines');
+                data = await readJson(response);
+            } catch (err) {
+                // fetch itself failed: the server is down or the connection dropped
+                showMessage('Could not reach the server. Please try again.', true);
+                summary.textContent = '';
+                rows.innerHTML = '';
+                return;
+            }
+
+            if (!response.ok) {
+                // 401 / 403 / 500: the server sends { message: '...' }
+                showMessage(data.message || 'Could not load fines.', true);
+                summary.textContent = '';     // replaces "Loading..."
+                rows.innerHTML = '';
+                return;
+            }
+
+            // The summary line, e.g. "6 unpaid fine(s), $25.74 owed in total."
+            // reduce() adds up the Amount of every fine, starting from 0.
+            const total = data.reduce((sum, fine) => sum + Number(fine.Amount), 0);
+            summary.textContent = `${data.length} unpaid fine(s), ${money(total)} owed in total.`;
+
+            // No fines: one row with class "empty" that spans all 7 columns
+            if (data.length === 0) {
+                rows.innerHTML = '<tr><td class="empty" colspan="7">No unpaid fines.</td></tr>';
+                return;
+            }
+
+            rows.innerHTML = '';
+            for (const fine of data) {
+                const tr = document.createElement('tr');
+
+                addCell(tr, fine.member_name);
+                addCell(tr, fine.member_email);
+                addCell(tr, fine.Title);
+
+                // Type cell: a <span class="fine-type overdue"> inside the cell.
+                // The second class is the Fine_type in lower case (overdue, damaged or lost);
+                // the stylesheet gives each one its own colour.
+                const typeCell = addCell(tr, '');
+                const pill = document.createElement('span');
+                pill.className = 'fine-type ' + fine.Fine_type.toLowerCase();
+                pill.textContent = fine.Fine_type;
+                typeCell.appendChild(pill);
+
+                addCell(tr, money(fine.Amount), 'amount');
+                addCell(tr, fine.Date_assessed);    // already plain text like 2026-10-14
+
+                // Actions cell: a Pay button, and a Waive button only for administrators.
+                // (The server refuses Waive from anyone else too; hiding the button is just tidiness.)
+                const actions = addCell(tr, '', 'fine-actions');
+
+                const payButton = document.createElement('button');
+                payButton.textContent = 'Pay';
+                payButton.onclick = () => act(fine.Fine_id, 'pay');
+                actions.appendChild(payButton);
+
+                if (isAdmin) {
+                    const waiveButton = document.createElement('button');
+                    waiveButton.textContent = 'Waive';
+                    waiveButton.className = 'quiet';
+                    waiveButton.onclick = () => act(fine.Fine_id, 'waive');
+                    actions.appendChild(waiveButton);
+                }
+
+                rows.appendChild(tr);
+            }
+        }
+
+        // act(id, what): sends POST /api/fines/<id>/pay or /waive,
+        // shows the server's message, then reloads the table.
+        async function act(id, what) {
+            // Waiving cancels money that is owed, so ask first. Cancel = do nothing.
+            if (what === 'waive' && !confirm('Are you sure you want to waive this fine?')) return;
+
+            // Switch every button in the table off while the request runs, so a second
+            // click cannot send the same request twice. (The server would refuse the
+            // second one anyway, but this avoids a confusing red message.)
+            // loadFines() redraws the table afterwards, which brings fresh buttons.
+            const buttons = rows.querySelectorAll('button');
+            buttons.forEach((b) => { b.disabled = true; });
+
+            try {
+                const response = await fetch('/api/fines/' + id + '/' + what, { method: 'POST' });
+                const data = await readJson(response);
+                showMessage(data.message || (response.ok ? 'Done.' : 'Something went wrong.'), !response.ok);
+            } catch (err) {
+                // fetch itself failed: the server is down or the connection dropped
+                showMessage('Could not reach the server. Please try again.', true);
+            }
+
+            await loadFines();       // the paid fine disappears from the list
+        }
+
+        // Start: ask who is logged in, then load the table.
+        async function start() {
+            try {
+                const me = await fetch('/me');
+                // /me answers { loggedIn, isStaff, isAdmin }
+                if (me.ok) isAdmin = (await readJson(me)).isAdmin === true;
+            } catch (err) {
+                // If /me cannot be reached, loadFines() below reports the problem.
+            }
+            await loadFines();
+        }
+        start();
     </script>
     <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
     <script src="/auth-nav.js"></script>
