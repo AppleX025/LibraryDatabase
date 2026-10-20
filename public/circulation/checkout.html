@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Checkout</title>
+    <!-- Adan's shared look (header, panel, form fields, buttons, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <style>
+        /* The four circulation links plus Log out do not fit on a phone,
+           so let them wrap onto a second line instead of running off the screen. */
+        header nav { flex-wrap: wrap; justify-content: flex-end; gap: 8px 15px; }
+    </style>
+</head>
+<body>
+    <!-- Top bar. auth-nav.js fills <span id="authLink"> with Login or Log out. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Checkout</span>
+        </div>
+        <nav>
+            <a href="/circulation/checkout.html">Checkout</a>
+            <a href="/circulation/return.html">Return</a>
+            <a href="/circulation/renew.html">Renew</a>
+            <a href="/circulation/open-loans.html">Open loans</a>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Check out an item</h1>
+        <p class="muted">Scan or type the copy's barcode, then enter the member's username or email.</p>
+
+        <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <form id="checkoutForm">
+                <div class="form-grid">
+                    <div>
+                        <label for="barcode">Copy barcode</label>
+                        <input id="barcode" name="barcode" placeholder="e.g. LIB-0001" autocomplete="off" required>
+                    </div>
+                    <div>
+                        <label for="member">Member username or email</label>
+                        <input id="member" name="member" placeholder="e.g. testmember" autocomplete="off" required>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="submitButton" type="submit">Check out</button>
+                    <button type="reset" class="secondary">Clear</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        // How this page works:
+        //   1. Staff fill in the barcode and member, then press "Check out".
+        //   2. The script sends both values to POST /api/circulation/checkout
+        //      (routes/circulation.js), which checks every lending rule.
+        //   3. The server answers with a message, which is shown in the notice
+        //      box: green if the loan was saved, red if a rule said no.
+        // All the rules are checked on the server, never here, because anything
+        // in the browser can be changed by the person using it.
+
+        // Grab the parts of the page the script needs to work with.
+        const form = document.getElementById('checkoutForm');
+        const notice = document.getElementById('notice');
+        const submitButton = document.getElementById('submitButton');
+
+        // Shows a message in the notice box: green normally, red when isError is true.
+        // textContent (not innerHTML) puts the message in as plain text, so a title
+        // or name containing "<" can never break the page.
+        function showNotice(message, isError) {
+            notice.hidden = false;
+            notice.textContent = message;
+            notice.classList.toggle('error', isError);   // adds the red style, or removes it
+        }
+
+        // Only staff can check items out. Warn right away instead of after the first try.
+        // GET /me (routes/auth.js) answers e.g. { loggedIn: true, isStaff: false }.
+        async function checkStaff() {
+            const response = await fetch('/me');
+            const me = await response.json();
+            if (!me.isStaff) {
+                showNotice('You must be logged in as staff to check out items.', true);
+                submitButton.disabled = true;
+            }
+        }
+
+        // Runs when the form is submitted (the button is clicked, or Enter is pressed,
+        // which is what a barcode scanner does after each scan).
+        form.addEventListener('submit', async (event) => {
+            // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
+            event.preventDefault();
+            // Grey out the button while waiting, so one checkout cannot be sent twice.
+            submitButton.disabled = true;
+
+            try {
+                // Send the two values to the server as JSON. "await" pauses here
+                // until the server answers.
+                const response = await fetch('/api/circulation/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        barcode: form.barcode.value,
+                        member: form.member.value
+                    })
+                });
+                // Every answer from the route is JSON with a "message".
+                const data = await response.json();
+
+                // The server's message says what happened, or which rule was broken.
+                // response.ok is true for success codes (200, 201) and false for errors
+                // (400 rule broken, 403 not staff, 500 server problem), so errors show red.
+                showNotice(data.message, !response.ok);
+
+                // On success, clear the barcode so the next item can be scanned for the same member.
+                if (response.ok) {
+                    form.barcode.value = '';
+                    form.barcode.focus();
+                }
+            } catch (err) {
+                // fetch itself failed: the server is not running or the network is down.
+                showNotice('Could not reach the server. Please try again.', true);
+            } finally {
+                // Whatever happened, make the button clickable again.
+                submitButton.disabled = false;
+            }
+        });
+
+        // Run the staff check as soon as the page opens.
+        checkStaff();
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>
