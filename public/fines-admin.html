@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Fines</title>
+    <!-- Adan's shared look (header, panel, buttons, table, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <!-- The few extra styles this page needs (fine-type labels, amounts, the Waive button) -->
+    <link rel="stylesheet" href="/fines-admin.css">
+</head>
+<body>
+    <!-- Top bar. auth-nav.js fills <span id="authLink"> with Login or Log out. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Fines</span>
+        </div>
+        <nav>
+            <a href="/circulation/checkout.html">Checkout</a>
+            <a href="/circulation/return.html">Return</a>
+            <a href="/circulation/renew.html">Renew</a>
+            <a href="/circulation/open-loans.html">Open loans</a>
+            <a href="/fines-admin.html" aria-current="page">Fines</a>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Unpaid fines</h1>
+        <!-- One line above the table: how many fines and the total owed.
+             It starts as "Loading..." and the script replaces it. -->
+        <p id="summary" class="muted">Loading...</p>
+
+        <!-- Box for messages: green after paying or waiving, red when something fails.
+             Hidden until the script has something to say. -->
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Email</th>
+                            <th>Item</th>
+                            <th>Type</th>
+                            <th class="amount">Amount</th>
+                            <th>Assessed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row per unpaid fine, each with a
+                         Pay button, and a Waive button too when an administrator is logged in. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // The script for this page goes here. It will:
+        //   1. ask the server who is logged in (GET /me), to know whether to show Waive;
+        //   2. load the unpaid fines (GET /api/fines) and fill the table;
+        //   3. send Pay (POST /api/fines/:id/pay) and Waive (POST /api/fines/:id/waive)
+        //      when a button is clicked, then reload the table.
+    </script>
+    <!-- Adds the Login / Log out control to the <span id="authLink"> in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

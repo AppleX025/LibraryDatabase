@@ -1,0 +1,71 @@
+/* fines-admin.css - the few extra styles the Fines page needs.
+   The page, header, panel, table and buttons come from catalog-admin.css; this file
+   only adds what that file does not have. It is loaded after catalog-admin.css. */
+
+/* ---------- Header navigation ---------- */
+/* The link for the page you are on is bold and underlined */
+header nav a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* ---------- Amounts ---------- */
+/* Money lines up on the right, with equal-width digits so the cents stay in a column */
+th.amount,
+td.amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- Fine-type labels (overdue, damaged, lost) ---------- */
+/* A small coloured pill. The colour says how serious the fine is, and the word
+   itself is always shown, so the colour never has to carry the meaning alone. */
+.fine-type {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #fdf0d5;
+  color: #7a4b00;
+}
+
+.fine-type.damaged {
+  background: #fde4e1;
+  color: #8f2418;
+}
+
+.fine-type.lost {
+  background: #e3e8f1;
+  color: #1f2f4a;
+}
+
+/* ---------- Buttons in the Actions column ---------- */
+/* Pay and Waive sit side by side and stay on one line */
+.fine-actions {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* Waive cancels money owed, so it is deliberately quieter than Pay: an outlined
+   button that turns red only when the mouse is over it. */
+button.quiet {
+  background: transparent;
+  color: #8f2418;
+  border: 1px solid #d9a9a3;
+}
+
+button.quiet:hover {
+  background: #fff0ee;
+  filter: none;
+}
+
+/* ---------- Empty list ---------- */
+td.empty {
+  text-align: center;
+  color: #5b6b82;
+  padding: 28px 9px;
+}
