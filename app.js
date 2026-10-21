@@ -96,14 +96,16 @@ app.get('/', (req, res) => {
 
 // /test-db: runs a tiny query to prove the database connection works.
 // Success -> { message: 'Database connected.', solution: 2 }
+// Anyone can open this address, so a failure shows only a general message.
+// The real reason (which can contain the database user name and server address)
+// is written to the terminal / the Azure log stream, where only we can read it.
 app.get('/test-db', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT 1 + 1 AS solution');
     res.json({ message: 'Database connected.', solution: rows[0].solution });
   } catch (err) {
-    // Show the real error in the terminal and in the response (useful while developing).
     console.error('Database query error:', err);
-    res.status(500).json({ message: 'Database failed to connect.', error: err.message });
+    res.status(500).json({ message: 'Database failed to connect.' });
   }
 });
 

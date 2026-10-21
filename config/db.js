@@ -16,6 +16,12 @@ require('../lib/env').loadEnv();
 // instead of opening a new connection for every request (which is slow).
 const pool = mysql.createPool({
     host: process.env.DB_HOST,         // Server address (e.g. localhost or Azure MySQL hostname)
+
+    // The port MySQL listens on. Optional: when DB_PORT is missing (or is not a
+    // number) it is left undefined, and the driver uses MySQL's usual port, 3306.
+    // That is also what Azure's MySQL uses, so hosted settings normally leave it out.
+    port: Number(process.env.DB_PORT) || undefined,
+
     user: process.env.DB_USER,         // MySQL username
     password: process.env.DB_PASS,     // MySQL password (the .env variable must be named DB_PASS exactly)
     database: process.env.DB_NAME,     // Which database/schema to use by default
