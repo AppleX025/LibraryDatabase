@@ -14,7 +14,9 @@
 // "Reports" opens the overdue report, but it stays highlighted on every page
 // whose address starts with /reports/.
 const SEARCH_LINK  = ['Search', '/search.html'];
-const MEMBER_LINKS = [['My Holds', '/my-holds.html']];
+// A member sees only their own loans on this page (staff see everyone's under "Open loans").
+const LOANS_LINK   = ['My Loans', '/circulation/open-loans.html'];
+const MEMBER_LINKS = [LOANS_LINK, ['My Holds', '/my-holds.html']];
 const STAFF_LINKS  = [
   ['Catalog',    '/catalog-admin.html'],
   ['Checkout',   '/circulation/checkout.html'],
@@ -28,7 +30,7 @@ const STAFF_LINKS  = [
 ];
 
 // buildMenu(me): returns the list of links for this visitor.
-// me is the answer from /me: { loggedIn, isStaff, isAdmin }
+// me is the answer from /me: { loggedIn, isStaff, isAdmin, name }
 function buildMenu(me) {
   if (!me.loggedIn) return [SEARCH_LINK];                   // only Search
   if (me.isStaff)   return [SEARCH_LINK, ...STAFF_LINKS];   // Search plus the staff links
@@ -62,7 +64,7 @@ function drawMenu(links) {
 // ---------------------------------------------------------------------
 // A page marks who may use it with an attribute on its <body>:
 //   <body data-access="staff">   staff only (catalog, circulation, fines, reports, staff holds)
-//   <body data-access="login">   any logged-in person (My Holds)
+//   <body data-access="login">   any logged-in person (My Holds, My Loans)
 //   no attribute                 open to everyone (Search, Login)
 // Someone who may not use the page is sent away before they see an error:
 // a visitor who is not logged in goes to the login page, and a logged-in member
@@ -90,7 +92,7 @@ async function setupAuthLink() {
   // "await" pauses here until the server answers.
   const response = await fetch('/me');
 
-  // Read the answer as JSON, e.g. { loggedIn: true, isStaff: false, isAdmin: false }.
+  // Read the answer as JSON, e.g. { loggedIn: true, isStaff: false, isAdmin: false, name: 'Eva' }.
   const me = await response.json();
 
   // Not allowed on this page? Then the visitor is already on their way elsewhere.
@@ -116,6 +118,19 @@ async function setupAuthLink() {
       // Session is gone, so send the visitor to the login page.
       window.location.href = '/login.html';
     });
+
+    // Greet the person by first name so they can see who is logged in.
+    // me.name is null when the server has no name for this session (for example a
+    // session that started before names were saved), so then there is no greeting.
+    if (me.name) {
+      const nameSpan = document.createElement('span');
+      // textContent shows the name as plain text, never as page code.
+      nameSpan.textContent = `Hello, ${me.name}!`;
+      // The class lets the stylesheets colour it and space it from the button.
+      nameSpan.className = 'greeting';
+      // Added before the button, so it appears to the left of "Log out".
+      spot.appendChild(nameSpan);
+    }
 
     // Put the finished button on the page, inside the placeholder.
     spot.appendChild(button);
