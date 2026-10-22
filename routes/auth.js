@@ -138,7 +138,7 @@ router.post('/register', async (req, res) => {
     // Never store the plain password; store the hash.
     const hash = await hashPassword(data.password);
 
-        await db.query(
+    await db.query(
       `INSERT INTO Member (Member_type_id, Username, First_name, Last_name, Email, Phone,
                            Street, City, State, Zip_code, Password_hash, Is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
