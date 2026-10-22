@@ -1,0 +1,15 @@
+/* my-notifications.css - the few extra styles the Notifications page needs.
+   The page, header, panel, table and buttons come from catalog-admin.css. */
+
+/* An unread notification stands out: bold text on a light blue background */
+tr.unread td {
+  font-weight: bold;
+  background: #eef4ff;
+}
+
+/* The bar above the table, with the "Mark all as read" button on the right */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
