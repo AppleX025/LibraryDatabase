@@ -196,6 +196,47 @@ th {
   background: #f0f4fa;
 }
 
+/* ---------- Hold status labels (My Holds) ---------- */
+/* A small rounded "pill" with the status text inside.
+   .status is the shared shape; each status below only sets its colors. */
+.status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;      /* fully rounded ends make the pill shape */
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Active: still waiting in line (blue) */
+.status-active {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Ready: the copy is set aside, come and pick it up (green) */
+.status-ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Completed: the member borrowed it (grey) */
+.status-completed {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* Cancelled: the member gave up the hold (red) */
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Expired: the 2-day pickup window ran out (amber) */
+.status-expired {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 /* ---------- Phones and narrow windows ---------- */
 @media (max-width: 700px) {
   /* Stack the search box, dropdown and button on top of each other */
