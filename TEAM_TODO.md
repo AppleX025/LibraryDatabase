@@ -112,15 +112,16 @@ Merged and working end to end (checkout, return, renew, open loans, with holds).
 
 At the moment a returned item is always treated as fine, and nothing creates a damaged or lost fine.
 
-- [ ] **Return page** (`public/circulation/return.html`): add a choice next to the barcode: returned **OK**, **damaged**, or **lost**. Send it to the server with the barcode.
-- [ ] **Route** (`POST /api/circulation/return` in `routes/circulation.js`): read the choice (anything else than the three values is a `400`). For damaged or lost, add a row in `Fine` with `Fine_type` `'damaged'` or `'lost'`, `Amount` equal to the item's `Replacement_cost` in `CatalogItem`, and the other columns left to their defaults. The table allows **one fine of each type per loan**, so returning the same loan twice cannot add the fine twice.
-- [ ] **The copy:** a damaged copy gets `Condition = 'damaged'`. A lost copy gets `Status = 'lost'`, so nobody can borrow it. A lost item still needs its loan closed; the table requires `Return_date` and `Return_staff_id` to be set together.
-- [ ] **Talk to Josh about one thing:** the hold-ready trigger gives a returned copy to the next waiting member. A damaged or lost copy should probably not be handed on. Decide together whether the trigger should skip those.
-- [ ] **Done when:** returning a loan as damaged shows a Damaged fine for the replacement cost on the Fines page (`/fines-admin.html`), and returning one as lost shows a Lost fine.
+- [x] **Return page** (`public/circulation/return.html`): add a choice next to the barcode: returned **OK**, **damaged**, or **lost**. Send it to the server with the barcode.
+- [x] **Route** (`POST /api/circulation/return` in `routes/circulation.js`): read the choice (anything else than the three values is a `400`). For damaged or lost, add a row in `Fine` with `Fine_type` `'damaged'` or `'lost'`, `Amount` equal to the item's `Replacement_cost` in `CatalogItem`, and the other columns left to their defaults. The table allows **one fine of each type per loan**, so returning the same loan twice cannot add the fine twice.
+- [x] **The copy:** a damaged copy gets `Condition = 'damaged'`. A lost copy gets `Status = 'lost'`, so nobody can borrow it. A lost item still needs its loan closed; the table requires `Return_date` and `Return_staff_id` to be set together.
+- [ ] **Talk to Josh about one thing:** the hold-ready trigger gives a returned copy to the next waiting member. A damaged or lost copy should probably not be handed on. Decide together whether the trigger should skip those. _(Done provisionally: `trigger_hold_ready.sql` now skips lost/damaged copies, but it still needs Josh's OK, and everyone must re-run that one file.)_
+- [x] **Done when:** returning a loan as damaged shows a Damaged fine for the replacement cost on the Fines page (`/fines-admin.html`), and returning one as lost shows a Lost fine. _(Verified end to end against a local MySQL copy.)_
+- [x] **Extra (beyond the list):** a lost item is paid for in full, so a late lost return no longer also charges an overdue fine. A lost return now **waives the overdue fine**, while damaged items are unchanged (still charged if late). In `routes/circulation.js`.
 
 ### 2. Return page wording
 
-- [ ] The message says "set it aside for holds", but by then the hold is already Ready. Better: "This copy is reserved for the next member's hold."
+- [x] The message says "set it aside for holds", but by then the hold is already Ready. Better: "This copy is reserved for the next member's hold."
 
 ### 3. Optional
 

@@ -36,6 +36,16 @@
             <form id="returnForm">
                 <label for="barcode">Copy barcode</label>
                 <input id="barcode" name="barcode" placeholder="e.g. LIB-0002" autocomplete="off" required autofocus>
+
+                <!-- How the copy came back. 'Returned OK' is the normal case; the other
+                     two add a replacement-cost fine (see POST /api/circulation/return). -->
+                <label for="outcome">Condition on return</label>
+                <select id="outcome" name="outcome">
+                    <option value="ok" selected>Returned OK</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="lost">Lost</option>
+                </select>
+
                 <div class="actions">
                     <button id="submitButton" type="submit">Return</button>
                     <button type="reset" class="secondary">Clear</button>
@@ -48,11 +58,14 @@
         // How this page works (same pattern as checkout.html, which has
         // line-by-line notes):
         //   1. Staff scan the returned copy's barcode.
-        //   2. The script sends it to POST /api/circulation/return, which closes
-        //      the open loan (return date + returning staff saved together).
-        //   3. The database then puts the copy back to 'available' and, if it
-        //      was late, adds the overdue fine. The server's message says if it
-        //      was late, the fine, and whether someone has a hold on the item.
+        //   2. Staff pick how the copy came back (OK / damaged / lost).
+        //   3. The script sends the barcode and that choice to
+        //      POST /api/circulation/return, which closes the open loan (return
+        //      date + returning staff saved together).
+        //   4. The database then puts an OK copy back to 'available' and, if it
+        //      was late, adds the overdue fine. A damaged or lost copy instead
+        //      gets a replacement-cost fine, and a lost copy is taken out of
+        //      circulation. The server's message says what happened.
 
         // Grab the parts of the page the script needs to work with.
         const form = document.getElementById('returnForm');
@@ -88,7 +101,7 @@
                 const response = await fetch('/api/circulation/return', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: form.barcode.value })
+                    body: JSON.stringify({ barcode: form.barcode.value, outcome: form.outcome.value })
                 });
                 const data = await response.json();
 
@@ -100,6 +113,9 @@
                 // (After an error it stays, so staff can see and fix what they typed.)
                 if (response.ok) {
                     form.barcode.value = '';
+                    // Back to the normal choice so the next scan does not carry
+                    // over a 'damaged' or 'lost' selection by accident.
+                    form.outcome.value = 'ok';
                 }
                 form.barcode.focus();
             } catch (err) {
