@@ -95,12 +95,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Changed the verifyPassword line near the top of auth.js to:
-//   const { verifyPassword, hashPassword } = require('../lib/password');
-// and add this line under the db require:
-//   const { clean, validateMemberFields, databaseRuleMessage } = require('../lib/memberValidation');
-// (db is already required in auth.js.)
-
 // POST /register: lets a visitor who is not logged in create a member account.
 router.post('/register', async (req, res) => {
   // Pull every field out of the request and clean blanks to null.
