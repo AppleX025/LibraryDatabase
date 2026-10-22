@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Manage members</title>
+  <link rel="stylesheet" href="/members-admin.css">
+</head>
+<body data-access="staff">
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / Manage members</span>
+    </div>
+    <nav><span id="authLink"></span></nav>
+  </header>
+
+  <main>
+    <h1>Member management</h1>
+    <p class="muted">Find a member, edit their details, or deactivate or reactivate their account.</p>
+
+    <p id="message"></p>
+
+    <section class="panel">
+      <label for="search">Search members</label>
+      <div class="search-row">
+        <input type="text" id="search" placeholder="Name, username or email">
+        <button type="button" id="searchBtn">Search</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Username</th><th>Name</th><th>Email</th><th>Type</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="editPanel" hidden>
+      <h2 id="editTitle">Edit member</h2>
+      <form id="editForm">
+        <input type="hidden" id="memberId">
+        <div class="grid">
+          <div><label for="firstName">First name</label><input type="text" id="firstName" maxlength="50" required></div>
+          <div><label for="lastName">Last name</label><input type="text" id="lastName" maxlength="50" required></div>
+          <div><label for="email">Email</label><input type="email" id="email" maxlength="100" required></div>
+          <div>
+            <label for="memberType">Member type</label>
+            <select id="memberType">
+              <option value="Student">Student</option>
+              <option value="Faculty">Faculty</option>
+              <option value="Alumni">Alumni</option>
+            </select>
+          </div>
+          <div><label for="phone">Phone</label><input type="text" id="phone" maxlength="20"></div>
+          <div><label for="street">Street</label><input type="text" id="street" maxlength="100"></div>
+          <div><label for="city">City</label><input type="text" id="city" maxlength="50"></div>
+          <div><label for="state">State (like TX)</label><input type="text" id="state" maxlength="2"></div>
+          <div><label for="zip">Zip code</label><input type="text" id="zip" maxlength="10"></div>
+        </div>
+        <div class="buttons">
+          <button type="submit">Save changes</button>
+          <button type="button" class="secondary" id="cancelBtn">Cancel</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="/members-admin.js"></script>
+  <script src="/auth-nav.js"></script>
+</body>
+</html>

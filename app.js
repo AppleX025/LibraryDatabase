@@ -81,6 +81,10 @@ app.use('/api/circulation', require('./routes/circulation'));
 // routes/fines.js is reached under /api/fines. The page is public/fines-admin.html.
 app.use('/api/fines', require('./routes/fines'));
 
+// Member management (staff only): search, edit and deactivate members. Every route in
+// routes/members.js is reached under /api/members. The page is public/members-admin.html.
+app.use('/api/members', require('./routes/members'));
+
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
 app.use('/', require('./routes/holds'));

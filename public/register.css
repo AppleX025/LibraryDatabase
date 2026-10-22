@@ -1,0 +1,32 @@
+/* Extra styles for register.html. The look of the page itself comes from login.css. */
+
+/* Two fields side by side (first/last name, state/zip). */
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* The member type dropdown fills the width like the text fields. */
+select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #c3cde0;
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+/* Green box shown after a successful registration; hidden while empty. */
+#success {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #e6f4ea;
+  color: #1e6b34;
+  font-weight: 600;
+}
+#success:empty {
+  display: none;
+}

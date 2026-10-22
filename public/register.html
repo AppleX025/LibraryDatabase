@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Create an account</title>
+  <link rel="stylesheet" href="/login.css">
+  <link rel="stylesheet" href="/register.css">
+</head>
+<body>
+  <header>
+    <div>
+      <strong>Library Database</strong>
+      <span> / Create an account</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h1>Create an account</h1>
+      <p class="muted">Members can search the catalog and place holds.</p>
+
+      <!-- No action or method: register.js sends the form with fetch(). -->
+      <form id="registerForm">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" maxlength="30" required>
+
+        <div class="row">
+          <div>
+            <label for="firstName">First name</label>
+            <input type="text" id="firstName" name="firstName" maxlength="50" required>
+          </div>
+          <div>
+            <label for="lastName">Last name</label>
+            <input type="text" id="lastName" name="lastName" maxlength="50" required>
+          </div>
+        </div>
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" maxlength="100" required>
+
+        <label for="password">Password (at least 8 characters)</label>
+        <input type="password" id="password" name="password" minlength="8" required>
+
+        <!-- Staff is not offered: library employees are linked by an administrator. -->
+        <label for="memberType">Member type</label>
+        <select id="memberType" name="memberType" required>
+          <option value="Student">Student</option>
+          <option value="Faculty">Faculty</option>
+          <option value="Alumni">Alumni</option>
+        </select>
+
+        <label for="phone">Phone (optional)</label>
+        <input type="text" id="phone" name="phone" maxlength="20">
+
+        <label for="street">Street (optional)</label>
+        <input type="text" id="street" name="street" maxlength="100">
+
+        <label for="city">City (optional)</label>
+        <input type="text" id="city" name="city" maxlength="50">
+
+        <div class="row">
+          <div>
+            <label for="state">State (optional, like TX)</label>
+            <input type="text" id="state" name="state" maxlength="2">
+          </div>
+          <div>
+            <label for="zip">Zip code (optional)</label>
+            <input type="text" id="zip" name="zip" maxlength="10">
+          </div>
+        </div>
+
+        <button type="submit">Create account</button>
+      </form>
+
+      <p class="muted"><a href="/login.html">Already have an account? Log in</a></p>
+      <p class="muted"><a href="/search.html">Back to search</a></p>
+
+      <!-- Errors show here (login.css styles #message as a red box when it has text). -->
+      <p id="message"></p>
+      <!-- Success shows here (styled in register.css). -->
+      <p id="success"></p>
+    </section>
+  </main>
+
+  <script src="/register.js"></script>
+  <script src="/auth-nav.js"></script>
+</body>
+</html>

@@ -10,10 +10,12 @@ const { Router } = require('../lib/router');
 const router = Router();
 
 // verifyPassword compares a typed password against a stored hash (lib/password.js)
-const { verifyPassword } = require('../lib/password');
+const { verifyPassword, hashPassword } = require('../lib/password');
 
 // MySQL connection pool from config/db.js (promise version)
 const db = require('../config/db');
+
+const { clean, validateMemberFields, databaseRuleMessage } = require('../lib/memberValidation');
 
 
 // POST /login
@@ -93,6 +95,75 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Changed the verifyPassword line near the top of auth.js to:
+//   const { verifyPassword, hashPassword } = require('../lib/password');
+// and add this line under the db require:
+//   const { clean, validateMemberFields, databaseRuleMessage } = require('../lib/memberValidation');
+// (db is already required in auth.js.)
+
+// POST /register: lets a visitor who is not logged in create a member account.
+router.post('/register', async (req, res) => {
+  // Pull every field out of the request and clean blanks to null.
+  const data = {
+    username: clean(req.body.username),
+    firstName: clean(req.body.firstName),
+    lastName: clean(req.body.lastName),
+    email: clean(req.body.email),
+    password: req.body.password ? String(req.body.password) : '',
+    memberType: clean(req.body.memberType),
+    phone: clean(req.body.phone),
+    street: clean(req.body.street),
+    city: clean(req.body.city),
+    state: clean(req.body.state),
+    zip: clean(req.body.zip)
+  };
+
+  // Username and password are checked here; the rest is checked by the shared helper.
+  if (!data.username) return res.status(400).json({ message: 'Please choose a username.' });
+  if (data.password.length < 8) {
+    return res.status(400).json({ message: 'The password must be at least 8 characters long.' });
+  }
+  // lib/password.js refuses passwords over 1000 characters, so give a clear message first.
+  if (data.password.length > 1000) {
+    return res.status(400).json({ message: 'The password must be 1000 characters or fewer.' });
+  }
+  const problem = validateMemberFields(data);
+  if (problem) return res.status(400).json({ message: problem });
+
+  try {
+    // Look the type up by name so the page never sends a raw id (and Staff is refused above).
+    const [types] = await db.query('SELECT Member_type_id FROM MemberType WHERE Type_name = ?', [data.memberType]);
+    if (types.length === 0) return res.status(400).json({ message: 'That member type does not exist.' });
+
+    // Friendly 409s: check for an existing username or email before inserting.
+    const [dupUser] = await db.query('SELECT 1 FROM Member WHERE Username = ?', [data.username]);
+    if (dupUser.length) return res.status(409).json({ message: 'That username is already taken. Please choose another.' });
+    const [dupEmail] = await db.query('SELECT 1 FROM Member WHERE Email = ?', [data.email]);
+    if (dupEmail.length) return res.status(409).json({ message: 'An account with that email already exists.' });
+
+    // Never store the plain password; store the hash.
+    const hash = await hashPassword(data.password);
+
+        await db.query(
+      `INSERT INTO Member (Member_type_id, Username, First_name, Last_name, Email, Phone,
+                           Street, City, State, Zip_code, Password_hash, Is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+      [types[0].Member_type_id, data.username, data.firstName, data.lastName, data.email,
+       data.phone, data.street, data.city, data.state, data.zip, hash]
+    );
+    res.status(201).json({ message: 'Account created. You can now log in.' });
+  } catch (err) {
+    // Two people registering at the same moment can still hit the unique keys.
+    if (err.code === 'ER_DUP_ENTRY') {
+      const which = /uq_member_email/.test(err.sqlMessage || '') ? 'email' : 'username';
+      return res.status(409).json({ message: `That ${which} is already in use.` });
+    }
+    const ruleMessage = databaseRuleMessage(err);
+    if (ruleMessage) return res.status(400).json({ message: ruleMessage });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
+  }
+});
 
 // POST /logout
 

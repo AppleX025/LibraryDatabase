@@ -14,6 +14,7 @@
 // "Reports" opens the overdue report, but it stays highlighted on every page
 // whose address starts with /reports/.
 const SEARCH_LINK  = ['Search', '/search.html'];
+const REGISTER_LINK = ['Register', '/register.html'];
 const MEMBER_LINKS = [['My Holds', '/my-holds.html']];
 const STAFF_LINKS  = [
   ['Catalog',    '/catalog-admin.html'],
@@ -22,6 +23,7 @@ const STAFF_LINKS  = [
   ['Renew',      '/circulation/renew.html'],
   ['Open loans', '/circulation/open-loans.html'],
   ['Fines',      '/fines-admin.html'],
+  ['Members',    '/members-admin.html'],
   ['Holds',      '/staff-holds.html'],
   ['My Holds',   '/my-holds.html'],      // staff who also borrow place holds for themselves
   ['Reports',    '/reports/overdue.html', '/reports/']
@@ -30,7 +32,7 @@ const STAFF_LINKS  = [
 // buildMenu(me): returns the list of links for this visitor.
 // me is the answer from /me: { loggedIn, isStaff, isAdmin }
 function buildMenu(me) {
-  if (!me.loggedIn) return [SEARCH_LINK];                   // only Search
+  if (!me.loggedIn) return [SEARCH_LINK, REGISTER_LINK];     // only Search and Register
   if (me.isStaff)   return [SEARCH_LINK, ...STAFF_LINKS];   // Search plus the staff links
   return [SEARCH_LINK, ...MEMBER_LINKS];                    // Search plus the member links
 }
