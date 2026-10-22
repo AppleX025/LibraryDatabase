@@ -32,7 +32,7 @@ function cell(text) {
 }
 
 // Loads the members that match the search box and redraws the table.
-async function loadMembers() {
+async function loadMembers({ keepMessage = false } = {}) {
   const q = encodeURIComponent(document.getElementById('search').value);
   const { res, data } = await api('?q=' + q, 'GET');
   if (!res.ok) return say(data.message, false);
@@ -66,8 +66,11 @@ async function loadMembers() {
     tr.appendChild(actions);
     rows.appendChild(tr);
   }
-  if (data.length === 0) say('No members found.', false);
-  else message.textContent = '';
+
+  if (!keepMessage) {
+    if (data.length === 0) say('No members found.', false);
+    else message.textContent = '';
+  }
 }
 
 // Fills the edit form with one member's details and shows it.
@@ -91,7 +94,7 @@ function openEdit(m) {
 async function setActive(m, active) {
   const { res, data } = await api('/' + m.Member_id + '/active', 'PATCH', { active });
   say(data.message, res.ok);
-  if (res.ok) loadMembers();
+  if (res.ok) loadMembers({ keepMessage: true });
 }
 
 // Saves the edit form: collects the fields and sends them to PUT /api/members/:id.
@@ -106,7 +109,7 @@ editForm.addEventListener('submit', async (e) => {
   say(data.message, res.ok);
   if (res.ok) {
     editPanel.hidden = true;
-    loadMembers();
+    loadMembers({ keepMessage: true });
   }
 });
 
