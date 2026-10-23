@@ -17,11 +17,20 @@ const db = require('../config/db');
 // It is listed before the route function, so it runs first.
 const { isStaff } = require('../middleware/auth');
 
+function parseMemberId(value) {
+  // Only digits, and the first digit cannot be 0, so "0", "-5", "1.5" and "abc" all fail.
+  if (!/^[1-9]\d*$/.test(String(value))) return null;
+  const id = Number(value);
+  // Very long digit strings turn into numbers that are not exact, so refuse those too.
+  if (!Number.isSafeInteger(id)) return null;
+  return id;
+}
+
 // Shared checks and plain-English messages for member fields (lib/memberValidation.js):
 //   clean                 turns blank text into null and trims spaces
 //   validateMemberFields  returns a message for the first bad field, or null if all are fine
 //   databaseRuleMessage   turns a MySQL rule error into a plain message
-const { clean, validateMemberFields, databaseRuleMessage } = require('../lib/memberValidation');
+const { clean, validateMemberFields, databaseRuleMessage, emailBelongsToStaff} = require('../lib/memberValidation');
 
 
 // GET /api/members?q=text
@@ -66,8 +75,14 @@ router.get('/', isStaff, async (req, res) => {
 // Edits one member's details and member type. The username and password are not changed here.
 // :id is the Member_id and arrives as req.params.id.
 router.put('/:id', isStaff, async (req, res) => {
+  
   // Collect the values the page sent. clean() turns blanks into null so optional
   // fields (phone, street, ...) are stored as empty instead of as ''.
+
+  const id = parseMemberId(req.params.id);
+  if (id === null) return res.status(400).json({ message: 'The member id must be a positive whole number.' });
+
+
   const data = {
     firstName: clean(req.body.firstName), lastName: clean(req.body.lastName),
     email: clean(req.body.email), memberType: clean(req.body.memberType),
@@ -76,26 +91,44 @@ router.put('/:id', isStaff, async (req, res) => {
   };
 
   // Check every value before touching the database.
-  // 400 = the request itself was wrong, and the message says what to fix.
   const problem = validateMemberFields(data);
   if (problem) return res.status(400).json({ message: problem });
 
   try {
+
+    // Look up this member's CURRENT type. Staff-type members are managed by an administrator, so it refuses edits here.
+
+    const [current] = await db.query(
+      `SELECT t.Type_name
+         FROM Member m JOIN MemberType t ON t.Member_type_id = m.Member_type_id
+        WHERE m.Member_id = ?`,
+      [id]
+    );
+
+    if (current.length === 0) return res.status(404).json({ message: 'Member not found.' });
+    if (current[0].Type_name === 'Staff') {
+      return res.status(403).json({ message: 'Staff-type members cannot be edited.' });
+    }
+
     // The page sends the type by name (like "Student"), so look up its id.
     const [types] = await db.query('SELECT Member_type_id FROM MemberType WHERE Type_name = ?', [data.memberType]);
     if (types.length === 0) return res.status(400).json({ message: 'That member type does not exist.' });
 
     // The email must be unique. "Member_id <> ?" skips this member's own record,
     // so saving without changing the email is allowed. 409 = clashes with existing data.
-    const [dup] = await db.query('SELECT 1 FROM Member WHERE Email = ? AND Member_id <> ?', [data.email, req.params.id]);
-    if (dup.length) return res.status(409).json({ message: 'Another account already uses that email.' });
+    const [dup] = await db.query('SELECT 1 FROM Member WHERE Email = ? AND Member_id <> ?', [data.email, id]);
+    if (dup.length) return res.status(409).json({ message: 'An account with that email already exists.' });
+
+    if (await emailBelongsToStaff(db, data.email)) {
+      return res.status(409).json({ message: 'An account with that email already exists.' });
+    }
 
     // Save the changes. WHERE Member_id = ? makes sure only this one member is updated.
     const [result] = await db.query(
       `UPDATE Member SET Member_type_id = ?, First_name = ?, Last_name = ?, Email = ?,
               Phone = ?, Street = ?, City = ?, State = ?, Zip_code = ? WHERE Member_id = ?`,
       [types[0].Member_type_id, data.firstName, data.lastName, data.email,
-       data.phone, data.street, data.city, data.state, data.zip, req.params.id]
+       data.phone, data.street, data.city, data.state, data.zip, id]
     );
 
     // affectedRows is 0 when no member has that id
@@ -122,12 +155,15 @@ router.put('/:id', isStaff, async (req, res) => {
 // Members are never deleted: loans and fines refer to them, so the history must stay.
 // Login already refuses accounts where Is_active is off.
 router.patch('/:id/active', isStaff, async (req, res) => {
+  const id = parseMemberId(req.params.id);
+  if (id === null) return res.status(400).json({ message: 'The member id must be a positive whole number.' });
+
   try {
     // Only a real true counts as "reactivate". Anything else (false, missing, text) deactivates.
     const active = req.body.active === true;
 
     // Switch the flag for just this member
-    const [result] = await db.query('UPDATE Member SET Is_active = ? WHERE Member_id = ?', [active, req.params.id]);
+    const [result] = await db.query('UPDATE Member SET Is_active = ? WHERE Member_id = ?', [active, id]);
 
     // affectedRows is 0 when no member has that id
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Member not found.' });

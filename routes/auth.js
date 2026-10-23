@@ -15,7 +15,7 @@ const { verifyPassword, hashPassword } = require('../lib/password');
 // MySQL connection pool from config/db.js (promise version)
 const db = require('../config/db');
 
-const { clean, validateMemberFields, databaseRuleMessage } = require('../lib/memberValidation');
+const { clean, validateMemberFields, databaseRuleMessage, emailBelongsToStaff } = require('../lib/memberValidation');
 
 
 // POST /login
@@ -134,6 +134,11 @@ router.post('/register', async (req, res) => {
     if (dupUser.length) return res.status(409).json({ message: 'That username is already taken. Please choose another.' });
     const [dupEmail] = await db.query('SELECT 1 FROM Member WHERE Email = ?', [data.email]);
     if (dupEmail.length) return res.status(409).json({ message: 'An account with that email already exists.' });
+
+    // Check if the email belongs to a staff account
+    if (await emailBelongsToStaff(db, data.email)) {
+      return res.status(409).json({ message: 'An account with that email already exists.' });
+    }
 
     // Never store the plain password; store the hash.
     const hash = await hashPassword(data.password);
