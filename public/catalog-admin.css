@@ -62,6 +62,13 @@ header nav {
   gap: 8px 15px;
 }
 
+/* "Hello, Eva!" in the header (added by auth-nav.js): a softer colour than the
+   links, with a little space before the Log out button. */
+.greeting {
+  color: #bed0e9;
+  margin-right: 10px;
+}
+
 /* ---------- Page content area ---------- */
 main {
   max-width: 1100px;

@@ -58,6 +58,13 @@ header nav {
   gap: 8px 15px;
 }
 
+/* "Hello, Eva!" in the header (added by auth-nav.js): a softer colour than the
+   links, with a little space before the Log out button. */
+.greeting {
+  color: #bed0e9;
+  margin-right: 10px;
+}
+
 /* The link for the page you are on is bold and underlined,
    so it is clear where you are. */
 header nav a[aria-current="page"] {

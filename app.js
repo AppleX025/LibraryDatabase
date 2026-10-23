@@ -84,6 +84,9 @@ app.use('/api/fines', require('./routes/fines'));
 // Member management (staff only): search, edit and deactivate members. Every route in
 // routes/members.js is reached under /api/members. The page is public/members-admin.html.
 app.use('/api/members', require('./routes/members'));
+// Notifications: a member's list, and marking one or all as read. Every route in
+// routes/notifications.js is reached under /api/notifications. The page is public/my-notifications.html.
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));

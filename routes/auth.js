@@ -41,20 +41,22 @@ router.post('/login', async (req, res) => {
     // The "?" is a placeholder filled from the array, so the input is
     // never pasted into the SQL (prevents SQL injection).
     // "Staff_id AS id" renames the column so staff and member results
-    // have the same shape (id, Password_hash, Is_active).
+    // have the same shape (id, Password_hash, Is_active, First_name).
     // Is_admin is read too: it is 1 for an administrator (staff who may also
     // waive fines) and 0 for ordinary staff. Members have no such column.
+    // First_name is read so the menu can greet the person ("Hello, Maria").
     // db.execute returns [rows, fields]; we only need the rows.
     let [rows] = await db.execute(
-      'SELECT Staff_id AS id, Password_hash, Is_active, Is_admin FROM Staff WHERE Email = ? LIMIT 1',
+      'SELECT Staff_id AS id, Password_hash, Is_active, Is_admin, First_name FROM Staff WHERE Email = ? LIMIT 1',
       [username]);
 
     // Step 2: no staff match, so look for a Member by username OR email.
     // That's why the value is passed twice, once for each "?".
+    // First_name is read here too, for the same greeting.
     if (!rows.length) {
       isStaff = false;
       [rows] = await db.execute(
-        'SELECT Member_id AS id, Password_hash, Is_active FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+        'SELECT Member_id AS id, Password_hash, Is_active, First_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
         [username, username]);
     }
 
@@ -76,6 +78,10 @@ router.post('/login', async (req, res) => {
     // cookie that points to it. isAuthenticated and isStaff in the middleware read these values.
     req.session.userId = user.id;
     req.session.isStaff = isStaff;
+
+    // Also remember the first name. GET /me sends it to the pages, so the menu
+    // can show who is logged in ("Hello, Eva").
+    req.session.name = user.First_name;
 
     // An administrator is a staff account whose Is_admin flag is set.
     // "isStaff &&" keeps a member from ever counting as an administrator,
@@ -180,6 +186,11 @@ router.post('/logout', (req, res) => {
 // It always answers with a normal response, even for logged-out visitors,
 // because "not logged in" is a valid answer, not an error.
 router.get('/me', (req, res) => {
+  // The first name was saved at login. It is missing for logged-out visitors,
+  // and for anyone whose session started before the name was saved, so in those
+  // cases this becomes null (the page then shows no greeting).
+  const name = req.session.name ? req.session.name : null;
+
   // userId is only saved in the session after a successful login.
   // If it exists the visitor is logged in (true), otherwise false.
   const loggedIn = req.session.userId ? true : false;
@@ -192,9 +203,11 @@ router.get('/me', (req, res) => {
   // It is missing for members and logged-out visitors, so it becomes false.
   const isAdmin = req.session.isAdmin ? true : false;
 
-  // Send the answers back as JSON, e.g. { "loggedIn": true, "isStaff": true, "isAdmin": false }.
-  // { loggedIn, isStaff, isAdmin } is shorthand for { loggedIn: loggedIn, isStaff: isStaff, ... }.
-  res.json({ loggedIn, isStaff, isAdmin });
+  // Send the answers back as JSON, e.g.
+  // { "loggedIn": true, "isStaff": true, "isAdmin": false, "name": "Maria" }.
+  // { loggedIn, isStaff, isAdmin, name } is shorthand for
+  // { loggedIn: loggedIn, isStaff: isStaff, isAdmin: isAdmin, name: name }.
+  res.json({ loggedIn, isStaff, isAdmin, name });
 });
 
 // Export the router so app.js can mount it with app.use('/', require('./routes/auth'))
