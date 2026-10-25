@@ -61,7 +61,7 @@
       if (!res.ok) { msg.textContent = data.error || data.message; return; }
       msg.textContent = data.length ? '' : 'You have no holds.';
 
-      for (const h of data) {
+          for (const h of data) {
         const tr = document.createElement('tr');
         const cells = [
           h.Title,
@@ -69,18 +69,33 @@
           new Date(h.Hold_date).toLocaleDateString(),
           h.Expiry_date ? new Date(h.Expiry_date).toLocaleDateString() : ''
         ];
-        for (const v of cells) {
+        // Build one table cell per value. The second cell (index 1) is the status,
+        // so it gets a colored label; the others are plain text.
+        cells.forEach((v, i) => {
           const td = document.createElement('td');
-          td.textContent = v;
+          if (i === 1) {
+            const pill = document.createElement('span');
+            pill.className = 'status status-' + String(v).toLowerCase();
+            pill.textContent = v;
+            td.appendChild(pill);
+          } else {
+            td.textContent = v;
+          }
           tr.appendChild(td);
-        }
+        });
         // Cancel button only for open holds
         const td = document.createElement('td');
         if (h.Status === 'Active' || h.Status === 'Ready') {
           const b = document.createElement('button');
           b.textContent = 'Cancel';
-          b.onclick = async () => {
-            const r = await fetch('/api/holds/' + h.Hold_id + '/cancel', { method: 'POST' });
+                b.onclick = async () => {
+        // Ask first, so a hold is never cancelled by an accidental click.
+        // confirm() shows a pop-up with OK and Cancel. It returns false if the member
+        // chooses Cancel, and then we stop here without touching the hold.
+        if (!confirm('Are you sure you want to cancel your hold on "' + h.Title + '"?')) {
+          return;
+        }
+        const r = await fetch('/api/holds/' + h.Hold_id + '/cancel', { method: 'POST' });
             const d = await r.json();
             msg.textContent = d.message || d.error;
             load();

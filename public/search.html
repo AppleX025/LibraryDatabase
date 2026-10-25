@@ -56,6 +56,7 @@
   </main>
 
   <script>
+    // Runs the search and fills the results table
     async function search() {
       const q = document.getElementById('q').value;
       const category = document.getElementById('category').value;
@@ -68,7 +69,7 @@
       const data = await response.json();
 
       tbody.innerHTML = '';
-      if (!response.ok) { message.textContent = data.error; return; }
+      if (!response.ok) { message.textContent = data.error || data.message; return; }
       message.textContent = data.length === 0 ? 'No items found.' : '';
 
       for (const item of data) {
@@ -78,7 +79,9 @@
           td.textContent = value;
           tr.appendChild(td);
         }
-                // Place hold button (members only; the server checks login)
+
+        // Place hold button. Everyone sees it; if the visitor is not logged in,
+        // clicking it sends them to the login page (see placeHold below).
         const actionTd = document.createElement('td');
         const holdBtn = document.createElement('button');
         holdBtn.textContent = 'Place hold';
@@ -89,6 +92,7 @@
         tbody.appendChild(tr);
       }
     }
+
     // Asks the server to place a hold on one item
     async function placeHold(itemId) {
       const message = document.getElementById('message');
@@ -97,17 +101,21 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId })
       });
-      // Not logged in -> go to login
+      // Not logged in -> go to the login page
       if (res.status === 401) { location.href = '/login.html'; return; }
       const data = await res.json();
+      // Show the result in a pop-up so the member clearly sees "Hold placed" (or the error)
+      alert(data.message || data.error);
+      // Refresh the results first so the available copy count updates.
+      // "await" makes us wait until the search has finished, because search() clears the message.
+      await search();
+      // Now set the message, so it stays on the page under the search bar
       message.textContent = data.message || data.error;
     }
-    
+
     document.getElementById('go').addEventListener('click', search);
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
     search();
-
-
   </script>
   <script src="/auth-nav.js"></script>
 </body>
