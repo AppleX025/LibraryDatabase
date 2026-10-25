@@ -21,6 +21,8 @@ const { createApp } = require('./lib/app');          // builds the web server
 const { serveStatic } = require('./lib/static');     // sends the files in public/
 const { createSession } = require('./lib/session');  // remembers who is logged in between requests
 const db = require('./config/db');                   // the MySQL connection pool
+// Marks Ready holds as Expired after their 2-day pickup window (lib/holdExpiry.js)
+const { expireHolds } = require('./lib/holdExpiry');
 
 // Safety nets: if something fails and nobody catches it, print the reason
 // in the terminal instead of the app quietly closing.
@@ -58,6 +60,18 @@ try {
   process.exit(1);              // stop here: a server without sessions would be broken
 }
 app.use(sessionStep);
+
+// Before any /api request is answered, expire the Ready holds whose pickup window is over,
+// so My Holds, Search, Staff Holds and Checkout always see up-to-date holds.
+// If this check fails we only print the reason: the person's real request must still work.
+app.use('/api', async (req, res, next) => {
+  try {
+    await expireHolds();   // does nothing if it already ran in the last minute
+  } catch (err) {
+    console.error('Hold expiry check failed:', err);
+  }
+  next();                  // always pass the request on to the next step
+});
 
 // ---------------------------------------------------------------------
 // Route files: each one handles a group of addresses
