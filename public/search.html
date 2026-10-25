@@ -106,10 +106,11 @@
       const data = await res.json();
       // Show the result in a pop-up so the member clearly sees "Hold placed" (or the error)
       alert(data.message || data.error);
-      // Also keep the text on the page under the search bar
+      // Refresh the results first so the available copy count updates.
+      // "await" makes us wait until the search has finished, because search() clears the message.
+      await search();
+      // Now set the message, so it stays on the page under the search bar
       message.textContent = data.message || data.error;
-      // Refresh the results so the available copy count updates
-      search();
     }
 
     document.getElementById('go').addEventListener('click', search);
