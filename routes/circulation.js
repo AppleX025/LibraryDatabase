@@ -300,21 +300,38 @@ router.post('/checkout', isStaff, async (req, res) => {
     }
 });
 
+// The three ways a copy can come back, sent by the return page's dropdown.
+//   ok      -> normal return
+//   damaged -> still ours, but the copy's Condition becomes 'damaged' and the
+//              member owes the item's replacement cost
+//   lost    -> the copy is gone: Status becomes 'lost' (nobody can borrow it)
+//              and the member owes the replacement cost
+const RETURN_OUTCOMES = ['ok', 'damaged', 'lost'];
+
 // ---------------------------------------------------------------------
 // POST /api/circulation/return
-// Body: { barcode }
+// Body: { barcode, outcome }   outcome = 'ok' | 'damaged' | 'lost'
 // Closes the copy's open loan: Return_date (today) and Return_staff_id
 // (the logged-in staff member) are saved together, because the database
 // requires both or neither. If the item is late, the trigger
-// trg_loan_overdue_fine adds the fine; this route only reads it back.
-// Staff only.
+// trg_loan_overdue_fine adds the overdue fine; this route only reads it back.
+// For a damaged or lost return the route itself marks the copy and adds a
+// 'damaged'/'lost' fine equal to the item's replacement cost. A lost item is
+// paid for in full, so any overdue fine on a late return is waived. Staff only.
 // ---------------------------------------------------------------------
 router.post('/return', isStaff, async (req, res) => {
     const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
+    // The dropdown choice, lower-cased. Missing/anything else becomes '' and is
+    // rejected below, so the route never guesses what to do with the copy.
+    const outcome = textField(req.body?.outcome).toLowerCase();
     const staffId = req.session.userId;   // the staff member checking the item in
 
     if (!barcode) {
         return res.status(400).json({ message: 'Enter the copy barcode.' });
+    }
+    // Only the three known choices are allowed (the page sends 'ok' by default).
+    if (!RETURN_OUTCOMES.includes(outcome)) {
+        return res.status(400).json({ message: 'Choose how the copy came back: OK, damaged, or lost.' });
     }
 
     // Same pattern as checkout: one connection, one transaction.
@@ -325,8 +342,9 @@ router.post('/return', isStaff, async (req, res) => {
         await conn.beginTransaction();
 
         // 1. Find the copy, then its open loan (if any).
+        // Replacement_cost is read here so a damaged/lost fine can use it.
         const [copies] = await conn.query(
-            `SELECT c.Copy_id, c.Item_id, ci.Title
+            `SELECT c.Copy_id, c.Item_id, ci.Title, ci.Replacement_cost
                FROM Copy c
                JOIN CatalogItem ci ON ci.Item_id = c.Item_id
               WHERE c.Barcode = ?`,
@@ -356,42 +374,117 @@ router.post('/return', isStaff, async (req, res) => {
         }
         const memberName = `${loan.First_name} ${loan.Last_name}`;
 
-        // 2. Close the loan. Both columns in one UPDATE, so they are always filled in together.
+        // 2. Damaged or lost: mark the copy and add the replacement-cost fine.
+        // This runs BEFORE the loan is closed in step 3 on purpose:
+        //   - Marking a 'lost' copy first means trg_loan_return_copy_status (which
+        //     only moves a copy that is still 'on loan' back to 'available') leaves
+        //     it out of circulation, and trg_loan_hold_ready sees the final copy
+        //     state and skips handing a damaged/lost copy to the next member.
+        //   - Fine_type is 'damaged' or 'lost', Amount is the item's
+        //     Replacement_cost. The table allows one fine of each type per loan
+        //     (uq_fine_loan_type), so returning the same loan twice cannot double it.
+        let replacementFine = 0;   // 0 for an OK return; set below for damaged/lost
+        if (outcome !== 'ok') {
+            // A fine needs an amount (Fine.Amount is NOT NULL). If the item has no
+            // replacement cost on file, stop with a message instead of guessing.
+            if (copy.Replacement_cost === null) {
+                throw new RuleError(`"${copy.Title}" (${barcode}) has no replacement cost on file, ` +
+                    `so a ${outcome} fine cannot be added. Set its replacement cost first.`);
+            }
+            replacementFine = Number(copy.Replacement_cost);   // MySQL sends DECIMAL as text
+
+            if (outcome === 'damaged') {
+                // Still ours and still borrowable, just recorded as damaged.
+                await conn.query(
+                    "UPDATE Copy SET `Condition` = 'damaged' WHERE Copy_id = ?",
+                    [copy.Copy_id]);
+            } else {   // 'lost'
+                // Gone: take it out of circulation so nobody can borrow it.
+                await conn.query(
+                    "UPDATE Copy SET Status = 'lost' WHERE Copy_id = ?",
+                    [copy.Copy_id]);
+            }
+
+            // Add the fine against this loan. Date_assessed, Is_paid and Date_paid
+            // fill in by default.
+            await conn.query(
+                'INSERT INTO Fine (Loan_id, Fine_type, Amount) VALUES (?, ?, ?)',
+                [loan.Loan_id, outcome, replacementFine]);
+        }
+
+        // A lost item is paid for in full (its replacement cost), so the member is
+        // not also charged the late fee. Closing a late loan fires
+        // trg_loan_overdue_fine, which adds an overdue fine AND a 'fine_assessed'
+        // notification; for a lost, late return we undo both just below. Record the
+        // latest notification id now so we delete exactly the one the trigger adds.
+        const waiveOverdue = outcome === 'lost' && loan.days_late > 0;
+        let notifHighWater = 0;
+        if (waiveOverdue) {
+            const [[n]] = await conn.query('SELECT COALESCE(MAX(Notification_id), 0) AS maxId FROM Notification');
+            notifHighWater = n.maxId;
+        }
+
+        // 3. Close the loan. Both columns in one UPDATE, so they are always filled in together.
         // MySQL clears Open_copy_id by itself once Return_date is set.
-        // This UPDATE also fires two triggers:
-        //   trg_loan_return_copy_status -> the copy's Status goes back to 'available'
+        // This UPDATE also fires these triggers:
+        //   trg_loan_return_copy_status -> an 'on loan' copy's Status goes back to 'available'
         //   trg_loan_overdue_fine       -> if late, adds the overdue fine + a notification
+        //   trg_loan_hold_ready         -> if a usable copy, sets it aside for the next waiting member
         await conn.query(
             `UPDATE Loan
                 SET Return_date = CURDATE(), Return_staff_id = ?
               WHERE Loan_id = ?`,
             [staffId, loan.Loan_id]);
 
-        // 3. If it came back late, the trigger has just added (or raised) the overdue fine.
-        // fine is undefined when there is none.
+        // Lost item: waive the late fee the trigger just added. Remove the overdue
+        // fine on this loan and the matching 'fine_assessed' notification (the only
+        // notification added since notifHighWater for this member).
+        if (waiveOverdue) {
+            await conn.query(
+                `DELETE FROM Fine WHERE Loan_id = ? AND Fine_type = 'overdue'`,
+                [loan.Loan_id]);
+            await conn.query(
+                `DELETE FROM Notification
+                  WHERE Notification_id > ? AND Member_id = ? AND Notification_type = 'fine_assessed'`,
+                [notifHighWater, loan.Member_id]);
+        }
+
+        // 4. If it came back late, the trigger has just added (or raised) the overdue fine.
+        // fine is undefined when there is none (including a lost item, waived above).
         const [[fine]] = await conn.query(
             `SELECT Amount FROM Fine WHERE Loan_id = ? AND Fine_type = 'overdue'`,
             [loan.Loan_id]);
 
-        // 4. Let staff know if another member is waiting for this item, so they can set it aside.
-        // (Only a message: turning the hold Ready is part of the holds area.)
+        // 5. Did this exact copy get set aside for a waiting member? trg_loan_hold_ready
+        // reserves the returned copy for the next hold and names it in Reserved_copy_id.
+        // A damaged/lost copy is skipped by that trigger, so this is 0 for those.
         const [[holds]] = await conn.query(
-            `SELECT COUNT(*) AS waiting FROM Hold
-              WHERE Item_id = ? AND Status = 'Active' AND Member_id <> ?`,
-            [copy.Item_id, loan.Member_id]);
+            `SELECT COUNT(*) AS reserved FROM Hold
+              WHERE Reserved_copy_id = ? AND Status = 'Ready'`,
+            [copy.Copy_id]);
+        const reservedForHold = holds.reserved > 0;
 
         await conn.commit();
 
         // Build the message for the page, piece by piece.
         let message = `Returned "${copy.Title}" from ${memberName}.`;
+        if (outcome === 'damaged') {
+            message += ` Marked damaged; damaged fine: $${replacementFine.toFixed(2)}.`;
+        } else if (outcome === 'lost') {
+            message += ` Marked lost and taken out of circulation; lost fine: $${replacementFine.toFixed(2)}.`;
+        }
         if (loan.days_late > 0) {
             message += ` It was ${loan.days_late} day(s) late`;
-            message += fine ? `; overdue fine: $${Number(fine.Amount).toFixed(2)}.` : '.';
+            if (waiveOverdue) {
+                message += '; overdue fine waived because the item is lost.';
+            } else {
+                message += fine ? `; overdue fine: $${Number(fine.Amount).toFixed(2)}.` : '.';
+            }
         } else {
-            message += ' On time, no fine.';
+            message += ' On time, no overdue fine.';
         }
-        if (holds.waiting > 0) {
-            message += ` ${holds.waiting} member(s) have a hold on this item, so set it aside for holds.`;
+        if (reservedForHold) {
+            message += ' This copy is reserved for the next member\'s hold.';
         }
 
         res.json({
@@ -401,9 +494,11 @@ router.post('/return', isStaff, async (req, res) => {
                 title: copy.Title,
                 barcode,
                 member: memberName,
+                outcome,
                 daysLate: Math.max(loan.days_late, 0),   // never negative (early = 0)
                 fine: fine ? Number(fine.Amount) : 0,
-                holdsWaiting: Number(holds.waiting)
+                replacementFine,
+                reservedForHold
             }
         });
     } catch (err) {

@@ -9,6 +9,10 @@
 -- Rule:    holds are served first come, first served: the waiting hold with
 --          the oldest Hold_date wins. A hold is placed on the item, not on
 --          one copy, so any copy of that item can satisfy it.
+-- Skip:    a copy returned as lost or damaged is NOT handed on. The return
+--          route marks the copy first, so by the time this trigger runs a lost
+--          copy's Status is 'lost' and a damaged copy's Condition is 'damaged',
+--          and the check in STEP 1 leaves those holds still waiting.
 -- Works with: Austin's checkout (database/circulation.sql and
 --          routes/circulation.js) already refuses to lend a copy that is
 --          reserved by a Ready hold to anyone except the hold's owner, and
@@ -36,9 +40,11 @@ FOR EACH ROW                    -- runs once for every loan row that was updated
 BEGIN
     -- Variables (DECLARE must come first, right after BEGIN).
     -- Each one starts empty (NULL) every time the trigger runs.
-    DECLARE the_item_id   INT;  -- which catalog item the returned copy belongs to
-    DECLARE the_hold_id   INT;  -- the waiting hold that will become Ready
-    DECLARE the_member_id INT;  -- the member who placed that hold
+    DECLARE the_item_id   INT;          -- which catalog item the returned copy belongs to
+    DECLARE the_hold_id   INT;          -- the waiting hold that will become Ready
+    DECLARE the_member_id INT;          -- the member who placed that hold
+    DECLARE the_status    VARCHAR(20);  -- the returned copy's Status
+    DECLARE the_condition VARCHAR(20);  -- the returned copy's Condition
 
     -- Only act on the moment the item comes back:
     --   OLD.Return_date IS NULL      -> it was still open before this update
@@ -47,12 +53,19 @@ BEGIN
     IF OLD.Return_date IS NULL
        AND NEW.Return_date IS NOT NULL THEN
 
-        -- STEP 1: find which catalog item the returned copy belongs to.
-        -- A loan only knows its Copy_id; the Item_id is stored on the copy.
-        SELECT Item_id
-          INTO the_item_id
+        -- STEP 1: find which catalog item the returned copy belongs to, plus the
+        -- copy's current Status and Condition (set by the return route moments ago,
+        -- and by trg_loan_return_copy_status which runs before this trigger).
+        -- A loan only knows its Copy_id; these columns live on the copy.
+        SELECT Item_id, Status, `Condition`
+          INTO the_item_id, the_status, the_condition
           FROM Copy
          WHERE Copy_id = NEW.Copy_id;
+
+        -- Only hand on a copy that came back usable: still on the shelf
+        -- ('available') and not marked damaged. A copy returned as lost
+        -- ('lost') or damaged must not be set aside for the next member.
+        IF the_status = 'available' AND the_condition <> 'damaged' THEN
 
         -- STEP 2: find who is first in line for that item.
         -- Only 'Active' holds are still waiting; the oldest Hold_date comes first
@@ -86,6 +99,7 @@ BEGIN
                     'Your item is ready to pick up');
 
         END IF;
+        END IF;   -- close the "copy came back usable" check from STEP 1
     END IF;
 END$$
 
