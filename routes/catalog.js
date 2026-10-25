@@ -20,6 +20,17 @@ const optionalNumber = value => optionalText(value) === null ? null : Number(val
 const positiveId = v => Number.isSafeInteger(Number(v)) && Number(v) > 0 ? Number(v) : null;
 const bad = message => Object.assign(new Error(message), { status: 400 });
 
+// Check that a YYYY-MM-DD string is a real calendar date, including leap years.
+// Date.UTC avoids interpreting the input in the server's local timezone.
+function isRealDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
 function validateItem(input) {
   const type = input.Item_type;
   if (!Object.hasOwn(TYPES, type)) throw bad('Select a valid item category.');
@@ -48,7 +59,8 @@ function validateItem(input) {
   if (type === 'boardgame' && extra.Min_players != null && extra.Max_players != null && extra.Max_players < extra.Min_players) throw bad('Maximum players must be at least minimum players.');
   if (type === 'boardgame' && (extra.Min_players === 0 || extra.Max_players === 0)) throw bad('Player counts must be positive.');
   if (type === 'newspaper') {
-    if (!extra.Newspaper_name || !/^\d{4}-\d{2}-\d{2}$/.test(extra.Issue_date || '')) throw bad('Newspapers need a name and issue date.');
+    if (!extra.Newspaper_name || !extra.Issue_date) throw bad('Newspapers need a name and issue date.');
+    if (!isRealDate(extra.Issue_date)) throw bad('Enter a real date for the newspaper issue.');
     if (extra.Is_historical && (replacement < 150 || replacement > 425)) throw bad('Historical newspaper replacement cost must be $150–$425.');
   }
   if (type === 'researchpaper' && (replacement < 174 || replacement > 425)) throw bad('Research paper replacement cost must be $174–$425.');
@@ -114,8 +126,13 @@ router.get('/items/:id', async (req, res) => {
     const [[item]] = await db.execute('SELECT * FROM CatalogItem WHERE Item_id = ?', [id]);
     if (!item) return res.status(404).json({ message: 'Item not found.' });
     const spec = TYPES[item.Item_type];
-    const [[extra]] = await db.query(`SELECT * FROM \`${spec.table}\` WHERE Item_id = ?`, [id]);
-    const [copies] = await db.execute('SELECT Copy_id, Barcode, `Condition`, Shelf_location, Status, Date_acquired FROM Copy WHERE Item_id = ? ORDER BY Copy_id', [id]);
+    // Format newspaper issue dates as text to avoid timezone shifts in JSON.
+    const detailColumns = item.Item_type === 'newspaper'
+      ? "Item_id, Item_type, Newspaper_name, DATE_FORMAT(Issue_date, '%Y-%m-%d') AS Issue_date, Edition, Is_historical"
+      : '*';
+    const [[extra]] = await db.query(`SELECT ${detailColumns} FROM \`${spec.table}\` WHERE Item_id = ?`, [id]);
+    // Return the date as YYYY-MM-DD text, not a JavaScript Date in UTC.
+    const [copies] = await db.execute("SELECT Copy_id, Barcode, `Condition`, Shelf_location, Status, DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired FROM Copy WHERE Item_id = ? ORDER BY Copy_id", [id]);
     let authors = [];
     if (item.Item_type === 'book' || item.Item_type === 'researchpaper') {
       const junction = item.Item_type === 'book' ? 'BookAuthor' : 'PaperAuthor';
@@ -175,7 +192,7 @@ router.post('/items/:id/copies', async (req, res) => {
     if (!['new','good','worn','damaged'].includes(condition)) throw bad('Select a valid copy condition.');
     if (shelf && shelf.length > 30) throw bad('Shelf location is too long.');
     const date = req.body.Date_acquired || new Date().toISOString().slice(0,10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw bad('Use YYYY-MM-DD for the acquisition date.');
+    if (!isRealDate(date)) throw bad('Enter a real date for the acquisition date (YYYY-MM-DD).');
     const [r] = await db.execute('INSERT INTO Copy (Item_id, Barcode, `Condition`, Shelf_location, Date_acquired) VALUES (?, ?, ?, ?, ?)', [id,barcode,condition,shelf,date]);
     res.status(201).json({ Copy_id: r.insertId, message: 'Copy added.' });
   } catch (err) { handleError(res, err); }
