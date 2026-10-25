@@ -415,8 +415,8 @@ router.post('/return', isStaff, async (req, res) => {
         // A lost item is paid for in full (its replacement cost), so the member is
         // not also charged the late fee. Closing a late loan fires
         // trg_loan_overdue_fine, which adds an overdue fine AND a 'fine_assessed'
-        // notification; for a lost, late return we undo both just below. Record the
-        // latest notification id now so we delete exactly the one the trigger adds.
+        // notification; for a lost, late return we mark both as waived just below. Record the
+        // latest notification id now so we change exactly the one the trigger adds.
         const waiveOverdue = outcome === 'lost' && loan.days_late > 0;
         let notifHighWater = 0;
         if (waiveOverdue) {
@@ -436,15 +436,21 @@ router.post('/return', isStaff, async (req, res) => {
               WHERE Loan_id = ?`,
             [staffId, loan.Loan_id]);
 
-        // Lost item: waive the late fee the trigger just added. Remove the overdue
-        // fine on this loan and the matching 'fine_assessed' notification (the only
-        // notification added since notifHighWater for this member).
+        // Lost item: waive the late fee the trigger just added. Nothing is deleted
+        // (deleting is only a "mark", never a real removal): the overdue fine is set
+        // to $0 and marked paid, which is the same way a staff waive works, and the
+        // 'fine_assessed' notification the trigger added keeps its row but its text
+        // now says the fine was waived. notifHighWater makes sure only the notification
+        // added by this return is changed.
         if (waiveOverdue) {
             await conn.query(
-                `DELETE FROM Fine WHERE Loan_id = ? AND Fine_type = 'overdue'`,
+                `UPDATE Fine
+                    SET Amount = 0, Is_paid = TRUE, Date_paid = CURDATE()
+                  WHERE Loan_id = ? AND Fine_type = 'overdue'`,
                 [loan.Loan_id]);
             await conn.query(
-                `DELETE FROM Notification
+                `UPDATE Notification
+                    SET Message = 'The overdue fine was waived because the item was marked lost.'
                   WHERE Notification_id > ? AND Member_id = ? AND Notification_type = 'fine_assessed'`,
                 [notifHighWater, loan.Member_id]);
         }
