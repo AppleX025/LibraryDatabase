@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>My Fines</title>
+    <!-- Adan's shared look (header, panel, buttons, table, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <!-- The few extra styles from the staff Fines page (fine-type labels and amounts) -->
+    <link rel="stylesheet" href="/fines-admin.css">
+</head>
+<!-- data-access="login": any logged-in person may open this page -->
+<body data-access="login">
+    <!-- Top bar. auth-nav.js draws the menu and the Login / Log out control here. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / My Fines</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>My fines</h1>
+        <!-- One line above the table: how many fines and the total owed.
+             It starts as "Loading..." and the script replaces it. -->
+        <p id="summary" class="muted">Loading...</p>
+
+        <!-- Box for messages: green after paying, red when something fails.
+             Hidden until the script has something to say. -->
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Type</th>
+                            <th class="amount">Amount</th>
+                            <th>Assessed</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <!-- Starts empty. The script adds one row per unpaid fine, each with a Pay button. -->
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // The table body, the summary line and the message box (ids are in the HTML above)
+        const rows    = document.getElementById('rows');
+        const summary = document.getElementById('summary');
+        const notice  = document.getElementById('notice');
+
+        // showMessage(text, isError): shows a line in the message box.
+        // Green by default; when isError is true, add the class 'error' (red).
+        function showMessage(text, isError) {
+            notice.textContent = text;
+            notice.hidden = false;                    // the box starts hidden
+            notice.className = isError ? 'error' : '';
+        }
+
+        // money(n): 9.99 -> '$9.99'.
+        // The server may send Amount as text, so Number() turns it into a real number first.
+        function money(n) {
+            return '$' + Number(n).toFixed(2);
+        }
+
+        // readJson(response): reads the server's answer as an object.
+        // If the answer is not valid JSON, it gives back an empty object,
+        // so the code after it can still show its own message instead of crashing.
+        async function readJson(response) {
+            try {
+                return await response.json();
+            } catch (err) {
+                return {};
+            }
+        }
+
+        // addCell(tr, text, className): adds one <td> to a row and returns it.
+        // textContent (not innerHTML) shows a title with "<" in it as plain text.
+        function addCell(tr, text, className) {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (className) td.className = className;
+            tr.appendChild(td);
+            return td;
+        }
+
+        // loadFines(): GET /api/fines/mine, then draw one row per fine.
+        // It does not touch the message box, so "Fine paid." stays on screen after pay() reloads the table.
+        async function loadFines() {
+            let response;
+            let data;
+            try {
+                response = await fetch('/api/fines/mine');
+                data = await readJson(response);
+            } catch (err) {
+                // fetch itself failed: the server is down or the connection dropped
+                showMessage('Could not reach the server. Please try again.', true);
+                summary.textContent = '';
+                rows.innerHTML = '';
+                return;
+            }
+
+            if (!response.ok) {
+                // 401 / 403 / 500: the server sends { message: '...' }.
+                // A staff member who opens this page lands here and sees "Members only."
+                showMessage(data.message || 'Could not load your fines.', true);
+                summary.textContent = '';             // replaces "Loading..."
+                rows.innerHTML = '';
+                return;
+            }
+
+            // The summary line, e.g. "2 unpaid fine(s), $13.49 owed in total."
+            // reduce() adds up the Amount of every fine, starting from 0.
+            const total = data.reduce((sum, fine) => sum + Number(fine.Amount), 0);
+            summary.textContent = `${data.length} unpaid fine(s), ${money(total)} owed in total.`;
+
+            // No fines: one row with class "empty" that spans all 5 columns
+            if (data.length === 0) {
+                rows.innerHTML = '<tr><td class="empty" colspan="5">You have no unpaid fines.</td></tr>';
+                return;
+            }
+
+            rows.innerHTML = '';
+            for (const fine of data) {
+                const tr = document.createElement('tr');
+
+                addCell(tr, fine.Title);
+
+                // Type cell: a <span class="fine-type overdue"> inside the cell.
+                // The second class is the Fine_type in lower case (overdue, damaged or lost);
+                // the stylesheet gives each one its own colour.
+                const typeCell = addCell(tr, '');
+                const pill = document.createElement('span');
+                pill.className = 'fine-type ' + fine.Fine_type.toLowerCase();
+                pill.textContent = fine.Fine_type;
+                typeCell.appendChild(pill);
+
+                addCell(tr, money(fine.Amount), 'amount');
+                addCell(tr, fine.Date_assessed);      // already plain text like 2026-10-14
+
+                // Last cell: the Pay button for this fine
+                const actions = addCell(tr, '', 'fine-actions');
+                const payButton = document.createElement('button');
+                payButton.textContent = 'Pay';
+                payButton.onclick = () => pay(fine.Fine_id);
+                actions.appendChild(payButton);
+
+                rows.appendChild(tr);
+            }
+        }
+
+        // pay(id): sends POST /api/fines/mine/<id>/pay, shows the server's message,
+        // then reloads the table. No real money is involved, it only marks the fine as paid.
+        async function pay(id) {
+            // Switch every button off while the request runs, so a second click
+            // cannot send the same request twice. loadFines() redraws fresh buttons afterwards.
+            const buttons = rows.querySelectorAll('button');
+            buttons.forEach((b) => { b.disabled = true; });
+
+            try {
+                const response = await fetch('/api/fines/mine/' + id + '/pay', { method: 'POST' });
+                const data = await readJson(response);
+                showMessage(data.message || (response.ok ? 'Done.' : 'Something went wrong.'), !response.ok);
+            } catch (err) {
+                // fetch itself failed: the server is down or the connection dropped
+                showMessage('Could not reach the server. Please try again.', true);
+            }
+
+            await loadFines();       // the paid fine disappears from the list
+        }
+
+        // Start: load the table as soon as the page opens.
+        loadFines();
+    </script>
+    <!-- Draws the menu and the Login / Log out control in the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>
