@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Notifications</title>
+    <!-- Adan's shared look (header, panel, buttons, table, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+    <!-- The coloured pill from the Fines page, which I reuse for the type of notification -->
+    <link rel="stylesheet" href="/fines-admin.css">
+    <!-- The few styles only this page needs (unread rows, the button bar) -->
+    <link rel="stylesheet" href="/my-notifications.css">
+</head>
+<!-- data-access="login": only logged-in members may open this page -->
+<body data-access="login">
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Notifications</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Notifications</h1>
+        <!-- One line above the table: how many notifications and how many are unread -->
+        <p id="summary" class="muted">Loading...</p>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel">
+            <!-- The bar with the "Mark all as read" button -->
+            <div class="toolbar">
+                <button id="readAll">Mark all as read</button>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Message</th>
+                            <th>Type</th>
+                            <th>Received</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const rows    = document.getElementById('rows');
+        const summary = document.getElementById('summary');
+        const notice  = document.getElementById('notice');
+        const readAll = document.getElementById('readAll');
+
+        // showMessage(text, isError): shows a line in the message box, green by default.
+        // When isError is true the class 'error' makes it red.
+        function showMessage(text, isError) {
+            notice.textContent = text;
+            notice.hidden = false;                       // the box starts hidden, so show it
+            notice.className = isError ? 'error' : '';
+        }
+
+        // readJson(response): reads the server's answer as an object, or gives back an
+        // empty one if it is not valid JSON, so the page shows its own message instead of crashing.
+        async function readJson(response) {
+            try {
+                return await response.json();
+            } catch (err) {
+                return {};
+            }
+        }
+
+        // addCell(tr, text, className): adds one <td> to a row and returns it.
+        // textContent (not innerHTML) shows a message with "<" in it as plain text.
+        function addCell(tr, text, className) {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (className) td.className = className;
+            tr.appendChild(td);
+            return td;
+        }
+
+        // loadNotes(): GET /api/notifications, then draw one row per notification.
+        // It does not touch the message box, so "Marked as read." stays on screen after a reload.
+        async function loadNotes() {
+            let response;
+            let data;
+            try {
+                response = await fetch('/api/notifications');
+                data = await readJson(response);
+            } catch (err) {
+                showMessage('Could not reach the server. Please try again.', true);
+                summary.textContent = '';
+                rows.innerHTML = '';
+                return;
+            }
+
+            if (!response.ok) {
+                // 401 / 403 / 500: the server sends { message: '...' }.
+                // Staff land here and see "Members only."
+                showMessage(data.message || 'Could not load your notifications.', true);
+                summary.textContent = '';
+                rows.innerHTML = '';
+                return;
+            }
+
+            // Count the unread ones. filter() keeps only the notifications where the
+            // test is true, and .length is how many are left. Is_read is 0 or 1, and 0 is "false".
+            const unread = data.filter((n) => !n.Is_read).length;
+            summary.textContent = `${data.length} notification(s), ${unread} unread.`;
+
+            // Nothing to mark, so the button is switched off
+            readAll.disabled = (unread === 0);
+
+            if (data.length === 0) {
+                rows.innerHTML = '<tr><td class="empty" colspan="4">You have no notifications.</td></tr>';
+                return;
+            }
+
+            rows.innerHTML = '';
+            for (const n of data) {
+                const tr = document.createElement('tr');
+                // Unread rows get the class 'unread' (bold with a light background, see the CSS file)
+                tr.className = n.Is_read ? '' : 'unread';
+
+                addCell(tr, n.Message);
+
+                // Type cell: the pill from the Fines page. The type is like "hold_ready",
+                // so the underscore is replaced with a space to read "hold ready".
+                const typeCell = addCell(tr, '');
+                const pill = document.createElement('span');
+                pill.className = 'fine-type';
+                pill.textContent = n.Notification_type.replace('_', ' ');
+                typeCell.appendChild(pill);
+
+                addCell(tr, n.Date_sent);             // already plain text like 2026-10-22 14:05
+
+                // Last cell: a "Mark read" button, only on unread rows
+                const actions = addCell(tr, '', 'fine-actions');
+                if (!n.Is_read) {
+                    const button = document.createElement('button');
+                    button.textContent = 'Mark read';
+                    button.className = 'quiet';
+                    button.onclick = () => send('/api/notifications/' + n.Notification_id + '/read');
+                    actions.appendChild(button);
+                }
+
+                rows.appendChild(tr);
+            }
+        }
+
+        // send(address): POSTs to the address (mark one, or mark all), shows the server's
+        // message, then reloads the list. Every button is switched off while it runs, so a
+        // second click cannot send the same request twice. loadNotes() draws fresh buttons.
+        async function send(address) {
+            readAll.disabled = true;
+            rows.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+
+            try {
+                const response = await fetch(address, { method: 'POST' });
+                const data = await readJson(response);
+                showMessage(data.message || (response.ok ? 'Done.' : 'Something went wrong.'), !response.ok);
+            } catch (err) {
+                showMessage('Could not reach the server. Please try again.', true);
+            }
+
+            await loadNotes();
+        }
+
+        // The "Mark all as read" button uses the same send() with its own address
+        readAll.onclick = () => send('/api/notifications/read-all');
+
+        loadNotes();
+    </script>
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

@@ -16,7 +16,11 @@
 const SEARCH_LINK  = ['Search', '/search.html'];
 // A member sees only their own loans on this page (staff see everyone's under "Open loans").
 const LOANS_LINK   = ['My Loans', '/circulation/open-loans.html'];
-const MEMBER_LINKS = [LOANS_LINK, ['My Holds', '/my-holds.html']];
+// A member pays their own unpaid fines on this page (staff use "Fines").
+const FINES_LINK   = ['My Fines', '/my-fines.html'];
+// A member reads their own notifications on this page (hold ready, fines, due dates).
+const NOTES_LINK   = ['My Notifications', '/my-notifications.html'];
+const MEMBER_LINKS = [LOANS_LINK, ['My Holds', '/my-holds.html'], FINES_LINK, NOTES_LINK];
 const STAFF_LINKS  = [
   ['Catalog',    '/catalog-admin.html'],
   ['Checkout',   '/circulation/checkout.html'],

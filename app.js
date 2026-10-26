@@ -81,6 +81,10 @@ app.use('/api/circulation', require('./routes/circulation'));
 // routes/fines.js is reached under /api/fines. The page is public/fines-admin.html.
 app.use('/api/fines', require('./routes/fines'));
 
+// Notifications: a member's list, and marking one or all as read. Every route in
+// routes/notifications.js is reached under /api/notifications. The page is public/my-notifications.html.
+app.use('/api/notifications', require('./routes/notifications'));
+
 // Catalog search data (GET /api/search, defined in routes/search.js).
 app.use('/', require('./routes/search'));
 app.use('/', require('./routes/holds'));
