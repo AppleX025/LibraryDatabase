@@ -21,7 +21,8 @@ const LOANS_LINK   = ['My Loans', '/circulation/open-loans.html'];
 const FINES_LINK   = ['My Fines', '/my-fines.html'];
 // A member reads their own notifications on this page (hold ready, fines, due dates).
 const NOTES_LINK   = ['My Notifications', '/my-notifications.html'];
-// A member edits their own details and password on this page (staff accounts have no member profile).
+// A member edits their own details and password on this page. A staff login uses it too,
+// for the member record linked to the staff account (and the staff login password).
 const PROFILE_LINK = ['My Profile', '/profile.html'];
 const MEMBER_LINKS = [LOANS_LINK, ['My Holds', '/my-holds.html'], FINES_LINK, NOTES_LINK, PROFILE_LINK];
 const STAFF_LINKS  = [
@@ -34,7 +35,8 @@ const STAFF_LINKS  = [
   ['Members',    '/members-admin.html'],
   ['Holds',      '/staff-holds.html'],
   ['My Holds',   '/my-holds.html'],      // staff who also borrow place holds for themselves
-  ['Reports',    '/reports/overdue.html', '/reports/']
+  ['Reports',    '/reports/overdue.html', '/reports/'],
+  PROFILE_LINK
 ];
 
 // buildMenu(me): returns the list of links for this visitor.
