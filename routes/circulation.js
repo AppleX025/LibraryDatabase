@@ -414,15 +414,9 @@ router.post('/return', isStaff, async (req, res) => {
 
         // A lost item is paid for in full (its replacement cost), so the member is
         // not also charged the late fee. Closing a late loan fires
-        // trg_loan_overdue_fine, which adds an overdue fine AND a 'fine_assessed'
-        // notification; for a lost, late return we mark both as waived just below. Record the
-        // latest notification id now so we change exactly the one the trigger adds.
+        // trg_loan_overdue_fine, which adds an overdue fine and a 'fine_assessed'
+        // notification; for a lost, late return we waive that fine just below.
         const waiveOverdue = outcome === 'lost' && loan.days_late > 0;
-        let notifHighWater = 0;
-        if (waiveOverdue) {
-            const [[n]] = await conn.query('SELECT COALESCE(MAX(Notification_id), 0) AS maxId FROM Notification');
-            notifHighWater = n.maxId;
-        }
 
         // 3. Close the loan. Both columns in one UPDATE, so they are always filled in together.
         // MySQL clears Open_copy_id by itself once Return_date is set.
@@ -436,27 +430,21 @@ router.post('/return', isStaff, async (req, res) => {
               WHERE Loan_id = ?`,
             [staffId, loan.Loan_id]);
 
-        // Lost item: waive the late fee the trigger just added. Nothing is deleted
-        // (deleting is only a "mark", never a real removal): the overdue fine is set
-        // to $0 and marked paid, which is the same way a staff waive works, and the
-        // 'fine_assessed' notification the trigger added keeps its row but its text
-        // now says the fine was waived. notifHighWater makes sure only the notification
-        // added by this return is changed.
+        // Lost item: waive the late fee the trigger just added. History rows are never
+        // deleted, so the overdue fine stays on the loan as a record, set to $0 and
+        // marked paid (it no longer counts as owed anywhere). The database requires
+        // a paid fine to have a Date_paid, so that is set to today too. The
+        // 'fine_assessed' notification the trigger sent is left as it is.
         if (waiveOverdue) {
             await conn.query(
                 `UPDATE Fine
                     SET Amount = 0, Is_paid = TRUE, Date_paid = CURDATE()
                   WHERE Loan_id = ? AND Fine_type = 'overdue'`,
                 [loan.Loan_id]);
-            await conn.query(
-                `UPDATE Notification
-                    SET Message = 'The overdue fine was waived because the item was marked lost.'
-                  WHERE Notification_id > ? AND Member_id = ? AND Notification_type = 'fine_assessed'`,
-                [notifHighWater, loan.Member_id]);
         }
 
         // 4. If it came back late, the trigger has just added (or raised) the overdue fine.
-        // fine is undefined when there is none (including a lost item, waived above).
+        // fine is undefined when there is none; for a lost item it is the waived $0 fine.
         const [[fine]] = await conn.query(
             `SELECT Amount FROM Fine WHERE Loan_id = ? AND Fine_type = 'overdue'`,
             [loan.Loan_id]);
