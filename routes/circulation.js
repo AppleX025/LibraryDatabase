@@ -7,6 +7,7 @@
 //   POST /api/circulation/return      staff only   take a copy back
 //   POST /api/circulation/renew       staff only   give a loan 14 more days
 //   GET  /api/circulation/open-loans  logged in    what a member has out
+//   GET  /api/circulation/ready-holds staff only   a member's holds waiting for pickup
 //
 // The pages that call these routes are in public/circulation/.
 //
@@ -699,6 +700,56 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Open loans failed:', err);
         res.status(500).json({ message: 'Could not load open loans. Please try again.' });
+    }
+});
+
+// ---------------------------------------------------------------------
+// GET /api/circulation/ready-holds?member=<username or email>
+// Staff only. Answers "which copy do I hand this member?".
+// A hold is 'Ready' once its copy has been set aside for the member (see
+// database/trigger_hold_ready.sql). The checkout page calls this route when
+// staff finish typing the member, and shows the title and barcode of each
+// waiting copy so staff do not have to look the barcode up.
+// It only reads, so it uses db.query directly: no transaction needed.
+// ---------------------------------------------------------------------
+router.get('/ready-holds', isStaff, async (req, res) => {
+    try {
+        // The text typed into the member box (username or email), trimmed.
+        const memberText = textField(req.query.member);
+        if (!memberText) {
+            return res.status(400).json({ message: 'Enter a member username or email.' });
+        }
+
+        // Find the member the same way checkout does, so both agree on who it is.
+        const [members] = await db.query(
+            'SELECT Member_id, First_name, Last_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+            [memberText, memberText]);
+        if (members.length === 0) {
+            // 404 = "not found"
+            return res.status(404).json({ message: `No member found with username or email "${memberText}".` });
+        }
+        const member = members[0];
+
+        // This member's Ready holds. Reserved_copy_id points at the copy that was
+        // set aside, so joining Copy gives its barcode and joining CatalogItem the title.
+        // DATE_FORMAT sends the pickup deadline as plain YYYY-MM-DD text.
+        // Soonest deadline first, so the most urgent pickup is at the top.
+        const [holds] = await db.query(
+            `SELECT h.Hold_id, ci.Title AS title, c.Barcode AS barcode,
+                    DATE_FORMAT(h.Expiry_date, '%Y-%m-%d') AS expiry_date
+               FROM Hold h
+               JOIN CatalogItem ci ON ci.Item_id = h.Item_id
+               JOIN Copy c ON c.Copy_id = h.Reserved_copy_id
+              WHERE h.Member_id = ?
+                AND h.Status = 'Ready'
+              ORDER BY h.Expiry_date, h.Hold_id`,
+            [member.Member_id]);
+
+        res.json({ member: `${member.First_name} ${member.Last_name}`, holds });
+    } catch (err) {
+        // Log the real reason for us; show the staff member a generic message.
+        console.error('Ready holds lookup failed:', err);
+        res.status(500).json({ message: 'Could not load the member\'s holds. Please try again.' });
     }
 });
 
