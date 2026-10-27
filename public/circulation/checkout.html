@@ -96,24 +96,18 @@
             }
         }
 
-        // Runs when the form is submitted (the button is clicked, or Enter is pressed,
-        // which is what a barcode scanner does after each scan).
-        form.addEventListener('submit', async (event) => {
-            // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
-            event.preventDefault();
-            // Grey out the button while waiting, so one checkout cannot be sent twice.
-            submitButton.disabled = true;
-
+        // Sends one checkout to the server and shows the answer in the notice box.
+        // Used by both ways of checking out: the form below, and the "Check out" buttons
+        // in the "Holds ready for pickup" box. Returns true if the loan was saved.
+        //   barcode: the copy's barcode, member: the member's username or email.
+        async function checkOut(barcode, member) {
             try {
                 // Send the two values to the server as JSON. "await" pauses here
                 // until the server answers.
                 const response = await fetch('/api/circulation/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        barcode: form.barcode.value,
-                        member: form.member.value
-                    })
+                    body: JSON.stringify({ barcode: barcode, member: member })
                 });
                 // Every answer from the route is JSON with a "message".
                 const data = await response.json();
@@ -122,28 +116,40 @@
                 // response.ok is true for success codes (200, 201) and false for errors
                 // (400 rule broken, 403 not staff, 500 server problem), so errors show red.
                 showNotice(data.message, !response.ok);
-
-                // On success, clear the barcode so the next item can be scanned for the same member.
-                if (response.ok) {
-                    form.barcode.value = '';
-                    form.barcode.focus();
-                    // The hold that was just picked up is no longer "ready", so reload
-                    // the list (a picked-up hold disappears from it).
-                    showReadyHolds();
-                }
+                return response.ok;
             } catch (err) {
                 // fetch itself failed: the server is not running or the network is down.
                 showNotice('Could not reach the server. Please try again.', true);
-            } finally {
-                // Whatever happened, make the button clickable again.
-                submitButton.disabled = false;
+                return false;
             }
+        }
+
+        // Runs when the form is submitted (the button is clicked, or Enter is pressed,
+        // which is what a barcode scanner does after each scan).
+        form.addEventListener('submit', async (event) => {
+            // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
+            event.preventDefault();
+            // Grey out the button while waiting, so one checkout cannot be sent twice.
+            submitButton.disabled = true;
+
+            const saved = await checkOut(form.barcode.value, form.member.value);
+
+            // On success, clear the barcode so the next item can be scanned for the same member.
+            if (saved) {
+                form.barcode.value = '';
+                form.barcode.focus();
+                // A hold may just have been picked up, so reload the "ready" list.
+                showReadyHolds();
+            }
+            // Whatever happened, make the button clickable again.
+            submitButton.disabled = false;
         });
 
         // ---- Holds ready for pickup --------------------------------------------
         // When staff finish typing the member (they click away or press Tab), ask the
         // server which of that member's holds are ready (GET /api/circulation/ready-holds)
-        // and list each waiting copy's barcode. Clicking a barcode fills the barcode box.
+        // and list each one with its own "Check out" button. Staff never need the barcode:
+        // the button sends the reserved copy's barcode (kept in the page) for them.
         const readyHoldsBox = document.getElementById('readyHolds');
         const readyHoldsMember = document.getElementById('readyHoldsMember');
         const readyHoldsList = document.getElementById('readyHoldsList');
@@ -177,18 +183,26 @@
                 }
 
                 readyHoldsMember.textContent = data.member + ' has ' + data.holds.length +
-                    (data.holds.length === 1 ? ' hold' : ' holds') + ' ready. Click a barcode to use it.';
+                    (data.holds.length === 1 ? ' hold' : ' holds') + ' ready for pickup. Click Check out to hand it over.';
                 readyHoldsList.replaceChildren();
                 for (const hold of data.holds) {
                     const item = document.createElement('li');
-                    // A button (not a link) because clicking it only fills in the form.
+                    // A button (not a link) because clicking it does the checkout.
                     const button = document.createElement('button');
                     button.type = 'button';          // so it does not submit the checkout form
-                    button.className = 'secondary';  // the grey button style from catalog-admin.css
-                    button.textContent = hold.barcode;
-                    button.addEventListener('click', () => {
-                        form.barcode.value = hold.barcode;
-                        form.barcode.focus();
+                    button.textContent = 'Check out';
+                    button.addEventListener('click', async () => {
+                        // Grey out the button while waiting, so one checkout cannot be sent twice.
+                        button.disabled = true;
+                        // Check out the reserved copy to the member this list was loaded for.
+                        // memberText is the member this list was built for, even if the box was edited since.
+                        const saved = await checkOut(hold.barcode, memberText);
+                        if (saved) {
+                            // The hold is now Completed, so reload the list (it drops out).
+                            showReadyHolds();
+                        } else {
+                            button.disabled = false;   // let staff try again after a rule message
+                        }
                     });
                     // textContent keeps titles with "<" or "&" from being read as HTML.
                     item.append(button, ' ' + hold.title + ' (pick up by ' + hold.expiry_date + ')');
