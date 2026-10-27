@@ -27,7 +27,7 @@
 
     <main>
         <h1>Check out an item</h1>
-        <p class="muted">Scan or type the copy's barcode, then enter the member's username or email.</p>
+        <p class="muted">Type the member's username or email: their holds appear below, each with a Check out button. For anything else, scan or type the copy's barcode as well.</p>
 
         <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
         <div id="notice" role="status" aria-live="polite" hidden></div>
@@ -51,11 +51,11 @@
             </form>
         </section>
 
-        <!-- Filled in by the script below when staff finish typing a member:
-             lists the member's holds that are ready for pickup, with each copy's barcode.
-             Hidden until there is something to show. -->
+        <!-- Filled in by the script below as staff type a member: that member's open holds,
+             each with a Check out button when a copy can be handed over now.
+             Hidden until a member with a username or email is typed. -->
         <section class="panel" id="readyHolds" style="margin-top: 16px" hidden>
-            <h2>Holds ready for pickup</h2>
+            <h2>Holds</h2>
             <p class="muted" id="readyHoldsMember"></p>
             <ul id="readyHoldsList"></ul>
         </section>
@@ -145,22 +145,30 @@
             submitButton.disabled = false;
         });
 
-        // ---- Holds ready for pickup --------------------------------------------
-        // When staff finish typing the member (they click away or press Tab), ask the
-        // server which of that member's holds are ready (GET /api/circulation/ready-holds)
-        // and list each one with its own "Check out" button. Staff never need the barcode:
-        // the button sends the reserved copy's barcode (kept in the page) for them.
+        // ---- The member's holds -------------------------------------------------
+        // As staff type the member (username or email), ask the server for that member's
+        // open holds (GET /api/circulation/member-holds) and list each one. A hold that can
+        // be handed over now gets a "Check out" button. Staff never need the barcode: the
+        // button sends the copy's barcode (kept in the page) for them.
         const readyHoldsBox = document.getElementById('readyHolds');
         const readyHoldsMember = document.getElementById('readyHoldsMember');
         const readyHoldsList = document.getElementById('readyHoldsList');
 
-        // Hides the list and empties it (used when the member box is cleared or nothing is waiting).
+        // Hides the list and empties it (used when the member box is cleared or the member is unknown).
         function clearReadyHolds() {
             readyHoldsBox.hidden = true;
             readyHoldsList.replaceChildren();   // removes every <li> inside the list
         }
 
-        // Asks the server for the member's Ready holds and shows them.
+        // holdNote(hold): the words after the title that say where the hold stands.
+        function holdNote(hold) {
+            if (hold.status === 'Ready') return 'ready, pick up by ' + hold.expiryDate;
+            if (hold.barcode) return 'copy available, hold placed ' + hold.placedDate;
+            if (hold.ahead > 0) return 'waiting, ' + hold.ahead + (hold.ahead === 1 ? ' member' : ' members') + ' ahead in line';
+            return 'waiting for a copy to be returned';
+        }
+
+        // Asks the server for the member's open holds and shows them.
         async function showReadyHolds() {
             const memberText = form.member.value.trim();
             if (!memberText) {
@@ -170,42 +178,45 @@
             try {
                 // encodeURIComponent makes the typed text safe to put in an address
                 // (for example, the "@" and "+" in an email).
-                const response = await fetch('/api/circulation/ready-holds?member=' + encodeURIComponent(memberText));
+                const response = await fetch('/api/circulation/member-holds?member=' + encodeURIComponent(memberText));
+                // The member box may have been edited while we waited; then this answer is
+                // for someone else, and the newer request will show the right list.
+                if (form.member.value.trim() !== memberText) return;
                 if (!response.ok) {
                     // Unknown member or not staff: the checkout itself will explain, so just hide the list.
                     clearReadyHolds();
                     return;
                 }
                 const data = await response.json();
-                if (data.holds.length === 0) {
-                    clearReadyHolds();   // nothing waiting for this member, so nothing to show
-                    return;
-                }
 
-                readyHoldsMember.textContent = data.member + ' has ' + data.holds.length +
-                    (data.holds.length === 1 ? ' hold' : ' holds') + ' ready for pickup. Click Check out to hand it over.';
                 readyHoldsList.replaceChildren();
+                readyHoldsMember.textContent = data.holds.length === 0
+                    ? data.member + ' has no open holds.'
+                    : data.member + ' has ' + data.holds.length + (data.holds.length === 1 ? ' open hold.' : ' open holds.');
+
                 for (const hold of data.holds) {
                     const item = document.createElement('li');
-                    // A button (not a link) because clicking it does the checkout.
-                    const button = document.createElement('button');
-                    button.type = 'button';          // so it does not submit the checkout form
-                    button.textContent = 'Check out';
-                    button.addEventListener('click', async () => {
-                        // Grey out the button while waiting, so one checkout cannot be sent twice.
-                        button.disabled = true;
-                        // Check out the reserved copy to the member this list was loaded for.
-                        // memberText is the member this list was built for, even if the box was edited since.
-                        const saved = await checkOut(hold.barcode, memberText);
-                        if (saved) {
-                            // The hold is now Completed, so reload the list (it drops out).
-                            showReadyHolds();
-                        } else {
-                            button.disabled = false;   // let staff try again after a rule message
-                        }
-                    });
+                    if (hold.barcode) {
+                        // A button (not a link) because clicking it does the checkout.
+                        const button = document.createElement('button');
+                        button.type = 'button';          // so it does not submit the checkout form
+                        button.textContent = 'Check out';
+                        button.addEventListener('click', async () => {
+                            // Grey out the button while waiting, so one checkout cannot be sent twice.
+                            button.disabled = true;
+                            // memberText is the member this list was built for, even if the box was edited since.
+                            const saved = await checkOut(hold.barcode, memberText);
+                            if (saved) {
+                                // The hold is now Completed, so reload the list (it drops out).
+                                showReadyHolds();
+                            } else {
+                                button.disabled = false;   // let staff try again after a rule message
+                            }
+                        });
+                        item.append(button, ' ');
+                    }
                     // textContent keeps titles with "<" or "&" from being read as HTML.
-                    item.append(button, ' ' + hold.title + ' (pick up by ' + hold.expiry_date + ')');
+                    item.append(hold.title + ' (' + holdNote(hold) + ')');
                     readyHoldsList.append(item);
                 }
                 readyHoldsBox.hidden = false;
@@ -215,7 +226,14 @@
             }
         }
 
-        // "change" fires when the box loses focus after its text was edited.
+        // Show the holds while staff are typing: wait until they pause for 400 ms,
+        // so the server is not asked after every single letter.
+        let holdsTimer = null;
+        form.member.addEventListener('input', () => {
+            clearTimeout(holdsTimer);                       // restart the wait
+            holdsTimer = setTimeout(showReadyHolds, 400);
+        });
+        // "change" fires when the box loses focus after its text was edited (Tab or a click elsewhere).
         form.member.addEventListener('change', showReadyHolds);
         // The Clear button resets the form, so hide the list too.
         form.addEventListener('reset', clearReadyHolds);
