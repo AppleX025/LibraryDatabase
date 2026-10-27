@@ -7,7 +7,7 @@
 //   POST /api/circulation/return      staff only   take a copy back
 //   POST /api/circulation/renew       staff only   give a loan 14 more days
 //   GET  /api/circulation/open-loans  logged in    what a member has out
-//   GET  /api/circulation/member-holds staff only  a member's open holds, ready to check out
+//   GET  /api/circulation/holds       staff only   open holds for a barcode and/or a member, ready to check out
 //
 // The pages that call these routes are in public/circulation/.
 //
@@ -722,84 +722,142 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// GET /api/circulation/member-holds?member=<username or email>
-// Staff only. Answers "what is this member waiting for, and can I hand it over now?".
-// The checkout page calls this as staff type the member, and shows every open
-// hold (Active or Ready) with a Check out button when a copy can go to them now:
-//   - Ready hold: the copy set aside for them (Reserved_copy_id).
-//   - Active hold: the first copy of the item that is available (not on loan, and not
-//     set aside for someone else's Ready hold), but only when nobody placed a hold on the
-//     same item before them. Otherwise there is no barcode, and "ahead" says why.
-// The barcode goes to the page only so its button can send it; staff never type it.
+// GET /api/circulation/holds?barcode=<copy barcode>&member=<username or email>
+// Staff only. Answers "which holds match what staff typed, and can I hand each one over now?".
+// The checkout page calls this as staff type, and shows the answer under the form.
+// What is typed decides what comes back:
+//   - only a member:  all of that member's open holds;
+//   - only a barcode: the open holds linked to that copy (the Ready hold set aside for
+//                     it, and the Active holds waiting for the same item, in line order);
+//   - both:           that member's hold on that copy (the exact hold), if there is one.
+//   - neither:        400, the page shows the message and no list.
+// Each row says whether it can be handed over right now. When it can, "barcode" holds the
+// copy to lend, so the page's Check out button can send it; otherwise "barcode" is null.
 // It only reads, so it uses db.query directly: no transaction needed.
 // ---------------------------------------------------------------------
-router.get('/member-holds', isStaff, async (req, res) => {
+router.get('/holds', isStaff, async (req, res) => {
     try {
-        // The text typed into the member box (username or email), trimmed.
+        // What was typed, trimmed; barcodes are stored in capitals (LIB-0001).
+        const barcodeText = textField(req.query.barcode).toUpperCase();
         const memberText = textField(req.query.member);
-        if (!memberText) {
-            return res.status(400).json({ message: 'Enter a member username or email.' });
+        if (!barcodeText && !memberText) {
+            return res.status(400).json({ message: 'Enter a copy barcode or a member.' });
         }
 
-        // Find the member the same way checkout does, so both agree on who it is.
-        const [members] = await db.query(
-            'SELECT Member_id, First_name, Last_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
-            [memberText, memberText]);
-        if (members.length === 0) {
-            // 404 = "not found"
-            return res.status(404).json({ message: `No member found with username or email "${memberText}".` });
+        // The member, found the same way checkout finds them (username or email).
+        let member = null;
+        if (memberText) {
+            const [members] = await db.query(
+                'SELECT Member_id, First_name, Last_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+                [memberText, memberText]);
+            if (members.length === 0) {
+                // 404 = "not found"
+                return res.status(404).json({ message: `No member found with username or email "${memberText}".` });
+            }
+            member = members[0];
         }
-        const member = members[0];
 
-        // One row per open hold of this member.
-        //   barcode: for a Ready hold the reserved copy's barcode; for an Active hold the first
-        //            available copy that is not set aside for a Ready hold (NULL if none).
-        //            "IS NOT NULL" inside NOT IN matters: one NULL in the list would make
-        //            NOT IN match nothing.
-        //   ahead:   how many other members' Active holds on the same item were placed before this one.
-        // Ready holds come first, then by the date the hold was placed.
+        // The copy, with its item's title, and whether a Ready hold has it set aside.
+        let copy = null;
+        if (barcodeText) {
+            const [copies] = await db.query(
+                `SELECT c.Copy_id, c.Item_id, c.Barcode, c.Status, ci.Title,
+                        EXISTS (SELECT 1 FROM Hold r
+                                 WHERE r.Reserved_copy_id = c.Copy_id AND r.Status = 'Ready') AS is_reserved
+                   FROM Copy c
+                   JOIN CatalogItem ci ON ci.Item_id = c.Item_id
+                  WHERE c.Barcode = ?`,
+                [barcodeText]);
+            if (copies.length === 0) {
+                return res.status(404).json({ message: `No copy found with barcode "${barcodeText}".` });
+            }
+            copy = copies[0];
+        }
+
+        // The open holds (Active or Ready). The WHERE parts below are picked from fixed text;
+        // anything typed goes in through the "?" placeholders, never into the SQL itself.
+        //   free_barcode: the first available copy of the item that no Ready hold has set aside
+        //                 (used when no barcode was typed). "IS NOT NULL" inside NOT IN matters:
+        //                 one NULL in the list would make NOT IN match nothing.
+        //   ahead:        how many other Active holds on the same item were placed before this one.
+        const filters = [];
+        const values = [];
+        if (member) { filters.push('h.Member_id = ?'); values.push(member.Member_id); }
+        if (copy) {
+            // Holds are placed on the item. For this copy: the Active holds waiting for the item,
+            // and the Ready hold set aside for this very copy (not a Ready hold for another copy).
+            filters.push("h.Item_id = ? AND (h.Status = 'Active' OR h.Reserved_copy_id = ?)");
+            values.push(copy.Item_id, copy.Copy_id);
+        }
         const [holds] = await db.query(
-            `SELECT h.Hold_id, h.Status AS status, ci.Title AS title,
+            `SELECT h.Hold_id, h.Status AS status, h.Reserved_copy_id, ci.Title AS title,
+                    m.Username AS username, CONCAT(m.First_name, ' ', m.Last_name) AS member_name,
                     DATE_FORMAT(h.Hold_date, '%Y-%m-%d') AS placed_date,
                     DATE_FORMAT(h.Expiry_date, '%Y-%m-%d') AS expiry_date,
-                    CASE WHEN h.Status = 'Ready' THEN rc.Barcode
-                         ELSE (SELECT c.Barcode FROM Copy c
-                                WHERE c.Item_id = h.Item_id
-                                  AND c.Status = 'available'
-                                  AND c.Copy_id NOT IN (SELECT Reserved_copy_id FROM Hold
-                                                         WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
-                                ORDER BY c.Copy_id LIMIT 1)
-                    END AS barcode,
+                    rc.Barcode AS reserved_barcode,
+                    (SELECT c.Barcode FROM Copy c
+                      WHERE c.Item_id = h.Item_id
+                        AND c.Status = 'available'
+                        AND c.Copy_id NOT IN (SELECT Reserved_copy_id FROM Hold
+                                               WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
+                      ORDER BY c.Copy_id LIMIT 1) AS free_barcode,
                     (SELECT COUNT(*) FROM Hold o
                       WHERE o.Item_id = h.Item_id AND o.Status = 'Active'
                         AND (o.Hold_date < h.Hold_date
                              OR (o.Hold_date = h.Hold_date AND o.Hold_id < h.Hold_id))) AS ahead
                FROM Hold h
                JOIN CatalogItem ci ON ci.Item_id = h.Item_id
+               JOIN Member m ON m.Member_id = h.Member_id
                LEFT JOIN Copy rc ON rc.Copy_id = h.Reserved_copy_id
-              WHERE h.Member_id = ?
-                AND h.Status IN ('Active', 'Ready')
-              ORDER BY (h.Status = 'Ready') DESC, h.Hold_date, h.Hold_id`,
-            [member.Member_id]);
+              WHERE h.Status IN ('Active', 'Ready')
+                AND ${filters.join(' AND ')}
+              ORDER BY (h.Status = 'Ready') DESC, h.Hold_date, h.Hold_id
+              LIMIT 100`,
+            values);
 
-        // An Active hold can be handed over only with a copy in hand and nobody ahead.
-        // (A Ready hold already has its copy and its turn.)
-        const rows = holds.map(h => ({
-            holdId: h.Hold_id,
-            status: h.status,
-            title: h.title,
-            placedDate: h.placed_date,
-            expiryDate: h.expiry_date,
-            ahead: Number(h.ahead),
-            // null means "no Check out button"; the page explains why from status and ahead.
-            barcode: h.status === 'Ready' || (Number(h.ahead) === 0 && h.barcode) ? h.barcode : null
-        }));
+        // Work out, for each hold, the copy that can be handed over now (or null).
+        const rows = holds.map(h => {
+            const ahead = Number(h.ahead);
+            let handOver = null;
+            if (copy) {
+                // A barcode was typed: only that copy can be lent.
+                if (h.status === 'Ready') {
+                    // The Ready hold set aside for this very copy (the query only returns that one).
+                    handOver = copy.Barcode;
+                } else if (copy.Status === 'available' && !copy.is_reserved && ahead === 0) {
+                    // Active hold, first in line, and the copy is free (not on loan, not set aside).
+                    handOver = copy.Barcode;
+                }
+            } else if (h.status === 'Ready') {
+                handOver = h.reserved_barcode;           // the copy that was set aside for them
+            } else if (ahead === 0) {
+                handOver = h.free_barcode;               // first in line: the first free copy (may be null)
+            }
+            return {
+                holdId: h.Hold_id,
+                status: h.status,
+                title: h.title,
+                username: h.username,
+                memberName: h.member_name,
+                placedDate: h.placed_date,
+                expiryDate: h.expiry_date,
+                ahead: ahead,
+                // null means "no Check out button"; the page explains why from status and ahead.
+                barcode: handOver
+            };
+        });
 
-        res.json({ member: `${member.First_name} ${member.Last_name}`, holds: rows });
+        res.json({
+            // Which kind of lookup this was, so the page can word its heading.
+            mode: member && copy ? 'both' : (member ? 'member' : 'barcode'),
+            member: member ? `${member.First_name} ${member.Last_name}` : null,
+            copy: copy ? { barcode: copy.Barcode, title: copy.Title, status: copy.Status } : null,
+            holds: rows
+        });
     } catch (err) {
         // Log the real reason for us; show the staff member a generic message.
-        console.error('Member holds lookup failed:', err);
-        res.status(500).json({ message: 'Could not load the member\'s holds. Please try again.' });
+        console.error('Holds lookup failed:', err);
+        res.status(500).json({ message: 'Could not load the holds. Please try again.' });
     }
 });
 
