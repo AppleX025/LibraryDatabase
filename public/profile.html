@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>My Profile</title>
+    <!-- Adan's shared look (header, panel, form fields, buttons, #notice box) -->
+    <link rel="stylesheet" href="/catalog-admin.css">
+</head>
+<!-- data-access="login": any logged-in person may open this page.
+     A staff login is told on the page that it has no member profile. -->
+<body data-access="login">
+    <!-- Top bar. auth-nav.js draws the menu and the Login / Log out control here. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / My Profile</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>My profile</h1>
+        <!-- One line above the forms: username, member type and the date registered.
+             These cannot be changed here. It starts as "Loading..." and profile.js replaces it. -->
+        <p id="summary" class="muted">Loading...</p>
+
+        <!-- Green after a save, red when a rule is broken. Hidden until there is a message. -->
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+
+        <!-- Contact details. profile.js fills the boxes and sends the form with fetch(). -->
+        <section class="panel" id="detailsPanel" hidden>
+            <h2>My details</h2>
+            <form id="detailsForm">
+                <div class="form-grid">
+                    <div>
+                        <label for="firstName">First name</label>
+                        <input id="firstName" name="firstName" maxlength="50" required>
+                    </div>
+                    <div>
+                        <label for="lastName">Last name</label>
+                        <input id="lastName" name="lastName" maxlength="50" required>
+                    </div>
+                    <div>
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" maxlength="100" required>
+                    </div>
+                    <div>
+                        <label for="phone">Phone (optional)</label>
+                        <input id="phone" name="phone" maxlength="20">
+                    </div>
+                    <div>
+                        <label for="street">Street (optional)</label>
+                        <input id="street" name="street" maxlength="100">
+                    </div>
+                    <div>
+                        <label for="city">City (optional)</label>
+                        <input id="city" name="city" maxlength="50">
+                    </div>
+                    <div>
+                        <label for="state">State (optional, like TX)</label>
+                        <input id="state" name="state" maxlength="2">
+                    </div>
+                    <div>
+                        <label for="zip">Zip code (optional)</label>
+                        <input id="zip" name="zip" maxlength="10">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="saveButton" type="submit">Save changes</button>
+                    <!-- Puts the boxes back to what is saved on the server (profile.js). -->
+                    <button id="undoButton" type="button" class="secondary">Undo changes</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Change password. Needs the current password, so nobody else can change it. -->
+        <section class="panel" id="passwordPanel" hidden>
+            <h2>Change password</h2>
+            <form id="passwordForm">
+                <div class="form-grid">
+                    <div>
+                        <label for="currentPassword">Current password</label>
+                        <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required>
+                    </div>
+                    <div></div>
+                    <div>
+                        <label for="newPassword">New password (at least 8 characters)</label>
+                        <input id="newPassword" name="newPassword" type="password" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <div>
+                        <label for="confirmPassword">Confirm new password</label>
+                        <input id="confirmPassword" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="passwordButton" type="submit">Change password</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <!-- The page's own script (loading, saving and changing the password) -->
+    <script src="/profile.js"></script>
+    <!-- Adds the menu and the Login / Log out control to the header -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>
