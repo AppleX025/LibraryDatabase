@@ -3,15 +3,21 @@
 // "My profile": a logged-in member reads and edits their own details.
 //
 // Routes in this file (app.js adds the "/api/profile" part):
-//   GET /api/profile            member only   the member's own details
-//   PUT /api/profile            member only   save new contact details
-//   PUT /api/profile/password   member only   change the password
+//   GET /api/profile            logged in   the person's own member details
+//   PUT /api/profile            logged in   save new contact details
+//   PUT /api/profile/password   logged in   change the password
 //
 // The page that calls these routes is public/profile.html (with profile.js).
 //
 // Safety rule used by every route here: the member is always found from the
 // login session (req.session.userId), never from a number sent by the page.
-// That way a member can only ever read or change their OWN account.
+// That way a person can only ever read or change their OWN account.
+//
+// Staff: a library employee who also borrows has TWO records. The Staff record
+// is the login; the Member record (type "Staff", linked through Member.Staff_id)
+// holds their borrowing details. For a staff login these routes work on the linked
+// Member record, and the password change applies to the Staff login they are
+// signed in with. A staff login with no linked Member record has no profile.
 //
 // What a member can change: first and last name, email, phone and address.
 // What they cannot change here: username, member type and registration date
@@ -40,19 +46,17 @@ const { hashPassword, verifyPassword } = require('../lib/password');
 
 // ---------------------------------------------------------------------
 // ownMember: runs before every route below, after isAuthenticated.
-// It finds the member row for this login and stores it in req.member.
-// It refuses (403 = "not allowed") two kinds of login:
-//   - a staff login: staff accounts live in a different table and are
-//     managed by an administrator, so there is no member profile to edit;
-//   - a member of type "Staff" (an employee who also borrows): like the
-//     staff edit page, their details are managed by an administrator.
+// It finds the member row for this login and stores it in req.member:
+//   - a member login: the Member row whose id is in the session;
+//   - a staff login: the Member row linked to that staff account (Member.Staff_id).
+// A staff login without a linked member record is refused with 403 ("not allowed"),
+// the same way the hold routes refuse it (routes/holds.js).
 // ---------------------------------------------------------------------
 async function ownMember(req, res, next) {
     try {
-        // A staff session's userId is a Staff_id, not a Member_id, so stop here.
-        if (req.session.isStaff) {
-            return res.status(403).json({ message: 'Staff accounts do not have a member profile. An administrator manages them.' });
-        }
+        // A staff session's userId is a Staff_id, so look the member up through Staff_id;
+        // for a member session the userId is already the Member_id.
+        const whereClause = req.session.isStaff ? 'm.Staff_id = ?' : 'm.Member_id = ?';
 
         // The member's own row, with the name of their member type (Student, Faculty, ...).
         const [rows] = await db.query(
@@ -62,15 +66,17 @@ async function ownMember(req, res, next) {
                     mt.Type_name
                FROM Member m
                JOIN MemberType mt ON mt.Member_type_id = m.Member_type_id
-              WHERE m.Member_id = ?`,
+              WHERE ${whereClause}
+              LIMIT 1`,
             [req.session.userId]);
 
-        // No row: the account no longer exists (should not happen while logged in).
         if (rows.length === 0) {
+            // A staff login with no linked member record (for example a plain test staff login).
+            if (req.session.isStaff) {
+                return res.status(403).json({ message: 'This staff account has no member record, so there is no profile to show.' });
+            }
+            // No row for a member login: the account no longer exists (should not happen while logged in).
             return res.status(404).json({ message: 'Your account was not found.' });
-        }
-        if (rows[0].Type_name === 'Staff') {
-            return res.status(403).json({ message: 'Staff-type members are managed by an administrator.' });
         }
 
         req.member = rows[0];   // the route that runs next reads the member from here
@@ -85,9 +91,24 @@ async function ownMember(req, res, next) {
 // GET /api/profile
 // Sends the member's details to the page. The password hash is never sent.
 // ---------------------------------------------------------------------
-router.get('/', isAuthenticated, ownMember, (req, res) => {
+router.get('/', isAuthenticated, ownMember, async (req, res) => {
     const m = req.member;
+
+    // For a staff login, also send the email they log in with, so the page can explain
+    // that the password below belongs to that staff login (not to the member record).
+    let staffLoginEmail = null;
+    if (req.session.isStaff) {
+        try {
+            const [staffRows] = await db.query('SELECT Email FROM Staff WHERE Staff_id = ?', [req.session.userId]);
+            staffLoginEmail = staffRows.length ? staffRows[0].Email : null;
+        } catch (err) {
+            console.error('Staff login lookup failed:', err);   // not fatal: the page just omits the line
+        }
+    }
+
     res.json({
+        isStaff: req.session.isStaff ? true : false,
+        staffLoginEmail: staffLoginEmail,
         username: m.Username,
         memberType: m.Type_name,
         dateRegistered: m.Date_registered,
@@ -120,8 +141,10 @@ router.put('/', isAuthenticated, ownMember, async (req, res) => {
         // The database only accepts capital letters for the state.
         state: clean(req.body?.state)?.toUpperCase() ?? null,
         zip: clean(req.body?.zip),
-        // The member type is not editable here; the shared check wants it, so use the current one.
-        memberType: req.member.Type_name
+        // The member type is not editable here. The shared check only accepts the types people
+        // may pick on the registration page (it refuses "Staff"), so give it one of those;
+        // the value is used for that check only and is never saved.
+        memberType: 'Student'
     };
 
     // Same rules as registration and the staff edit page.
@@ -147,7 +170,14 @@ router.put('/', isAuthenticated, ownMember, async (req, res) => {
             [data.firstName, data.lastName, data.email, data.phone,
              data.street, data.city, data.state, data.zip, req.member.Member_id]);
 
-        // The menu greets the member by the first name saved at login ("Hello, Eva"),
+        // A staff login's name also lives in the Staff record; keep the two in step so the
+        // staff pages (for example who processed a checkout) show the same name.
+        if (req.session.isStaff) {
+            await db.query('UPDATE Staff SET First_name = ?, Last_name = ? WHERE Staff_id = ?',
+                [data.firstName, data.lastName, req.session.userId]);
+        }
+
+        // The menu greets the person by the first name saved at login ("Hello, Eva"),
         // so keep that name up to date for the rest of this session.
         req.session.name = data.firstName;
 
@@ -186,15 +216,31 @@ router.put('/password', isAuthenticated, ownMember, async (req, res) => {
     if (next === current) return res.status(400).json({ message: 'The new password must be different from the current one.' });
 
     try {
+        // Which password is being changed: the one the person logged in with.
+        //   staff login  -> the Staff record's password (their login)
+        //   member login -> the Member record's password
+        let storedHash;
+        if (req.session.isStaff) {
+            const [staffRows] = await db.query('SELECT Password_hash FROM Staff WHERE Staff_id = ?', [req.session.userId]);
+            if (staffRows.length === 0) return res.status(404).json({ message: 'Your account was not found.' });
+            storedHash = staffRows[0].Password_hash;
+        } else {
+            storedHash = req.member.Password_hash;
+        }
+
         // Check the current password against the stored hash.
         // 403 (not 401) so the page does not treat it as "logged out".
-        if (!(await verifyPassword(current, req.member.Password_hash))) {
+        if (!(await verifyPassword(current, storedHash))) {
             return res.status(403).json({ message: 'The current password is not correct.' });
         }
 
         // Save only the new hash, never the password itself.
-        await db.query('UPDATE Member SET Password_hash = ? WHERE Member_id = ?',
-            [await hashPassword(next), req.member.Member_id]);
+        const newHash = await hashPassword(next);
+        if (req.session.isStaff) {
+            await db.query('UPDATE Staff SET Password_hash = ? WHERE Staff_id = ?', [newHash, req.session.userId]);
+        } else {
+            await db.query('UPDATE Member SET Password_hash = ? WHERE Member_id = ?', [newHash, req.member.Member_id]);
+        }
 
         res.json({ message: 'Your password was changed.' });
     } catch (err) {

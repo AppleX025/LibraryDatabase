@@ -18,6 +18,8 @@ const passwordForm = document.getElementById('passwordForm');
 const saveButton = document.getElementById('saveButton');
 const undoButton = document.getElementById('undoButton');
 const passwordButton = document.getElementById('passwordButton');
+const staffNote = document.getElementById('staffNote');
+const staffPasswordNote = document.getElementById('staffPasswordNote');
 
 // The details as last loaded or saved, so "Undo changes" can put them back.
 let savedProfile = null;
@@ -68,6 +70,17 @@ async function loadProfile() {
         summary.textContent = 'Username: ' + data.username + '  |  Member type: ' + data.memberType +
             '  |  Registered: ' + data.dateRegistered;
         fillForm(data);
+
+        // A staff login edits the borrowing (member) record linked to the staff account,
+        // and the password below is the staff login's. Say so, so it is not a surprise.
+        if (data.isStaff) {
+            staffNote.textContent = 'You are signed in with a staff account. These are the details of your linked member account (the one you borrow with).';
+            staffNote.hidden = false;
+            staffPasswordNote.textContent = 'This changes the password of your staff login' +
+                (data.staffLoginEmail ? ' (' + data.staffLoginEmail + ')' : '') + '. Your member account has its own password.';
+            staffPasswordNote.hidden = false;
+        }
+
         detailsPanel.hidden = false;      // both forms start hidden until there is a profile to show
         passwordPanel.hidden = false;
     } catch (err) {

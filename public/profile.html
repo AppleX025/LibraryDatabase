@@ -34,6 +34,8 @@
         <!-- Contact details. profile.js fills the boxes and sends the form with fetch(). -->
         <section class="panel" id="detailsPanel" hidden>
             <h2>My details</h2>
+            <!-- Shown only to staff logins (profile.js): explains whose details these are. -->
+            <p id="staffNote" class="muted" hidden></p>
             <form id="detailsForm">
                 <div class="form-grid">
                     <div>
@@ -78,8 +80,10 @@
         </section>
 
         <!-- Change password. Needs the current password, so nobody else can change it. -->
-        <section class="panel" id="passwordPanel" hidden>
+        <section class="panel" id="passwordPanel" style="margin-top: 16px" hidden>
             <h2>Change password</h2>
+            <!-- Shown only to staff logins (profile.js): says which password this changes. -->
+            <p id="staffPasswordNote" class="muted" hidden></p>
             <form id="passwordForm">
                 <div class="form-grid">
                     <div>
