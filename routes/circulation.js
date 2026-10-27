@@ -7,7 +7,7 @@
 //   POST /api/circulation/return      staff only   take a copy back
 //   POST /api/circulation/renew       staff only   give a loan 14 more days
 //   GET  /api/circulation/open-loans  logged in    what a member has out
-//   GET  /api/circulation/ready-holds staff only   a member's holds waiting for pickup
+//   GET  /api/circulation/member-holds staff only  a member's open holds, ready to check out
 //
 // The pages that call these routes are in public/circulation/.
 //
@@ -257,6 +257,15 @@ router.post('/checkout', isStaff, async (req, res) => {
             `SELECT Loan_id, Loan_type, DATE_FORMAT(Due_date, '%Y-%m-%d') AS due_date
                FROM Loan WHERE Loan_id = ?`,
             [result.insertId]);
+
+        // A member who borrows an item they were waiting for has used up that hold.
+        // A Ready hold is closed by the database itself (trg_loan_hold_completed, which
+        // matches the reserved copy). An Active hold has no reserved copy, so it is closed here.
+        // Only this member's hold on this same item is touched (the unique rule allows one open hold each).
+        await conn.query(
+            `UPDATE Hold SET Status = 'Completed'
+              WHERE Member_id = ? AND Item_id = ? AND Status = 'Active'`,
+            [member.Member_id, copy.Item_id]);
 
         // Every check passed and the loan is saved: make it permanent.
         await conn.commit();
@@ -704,15 +713,18 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// GET /api/circulation/ready-holds?member=<username or email>
-// Staff only. Answers "which copy do I hand this member?".
-// A hold is 'Ready' once its copy has been set aside for the member (see
-// database/trigger_hold_ready.sql). The checkout page calls this route when
-// staff finish typing the member, and shows the title and barcode of each
-// waiting copy so staff do not have to look the barcode up.
+// GET /api/circulation/member-holds?member=<username or email>
+// Staff only. Answers "what is this member waiting for, and can I hand it over now?".
+// The checkout page calls this as staff type the member, and shows every open
+// hold (Active or Ready) with a Check out button when a copy can go to them now:
+//   - Ready hold: the copy set aside for them (Reserved_copy_id).
+//   - Active hold: the first copy of the item that is available (not on loan, and not
+//     set aside for someone else's Ready hold), but only when nobody placed a hold on the
+//     same item before them. Otherwise there is no barcode, and "ahead" says why.
+// The barcode goes to the page only so its button can send it; staff never type it.
 // It only reads, so it uses db.query directly: no transaction needed.
 // ---------------------------------------------------------------------
-router.get('/ready-holds', isStaff, async (req, res) => {
+router.get('/member-holds', isStaff, async (req, res) => {
     try {
         // The text typed into the member box (username or email), trimmed.
         const memberText = textField(req.query.member);
@@ -730,25 +742,54 @@ router.get('/ready-holds', isStaff, async (req, res) => {
         }
         const member = members[0];
 
-        // This member's Ready holds. Reserved_copy_id points at the copy that was
-        // set aside, so joining Copy gives its barcode and joining CatalogItem the title.
-        // DATE_FORMAT sends the pickup deadline as plain YYYY-MM-DD text.
-        // Soonest deadline first, so the most urgent pickup is at the top.
+        // One row per open hold of this member.
+        //   barcode: for a Ready hold the reserved copy's barcode; for an Active hold the first
+        //            available copy that is not set aside for a Ready hold (NULL if none).
+        //            "IS NOT NULL" inside NOT IN matters: one NULL in the list would make
+        //            NOT IN match nothing.
+        //   ahead:   how many other members' Active holds on the same item were placed before this one.
+        // Ready holds come first, then by the date the hold was placed.
         const [holds] = await db.query(
-            `SELECT h.Hold_id, ci.Title AS title, c.Barcode AS barcode,
-                    DATE_FORMAT(h.Expiry_date, '%Y-%m-%d') AS expiry_date
+            `SELECT h.Hold_id, h.Status AS status, ci.Title AS title,
+                    DATE_FORMAT(h.Hold_date, '%Y-%m-%d') AS placed_date,
+                    DATE_FORMAT(h.Expiry_date, '%Y-%m-%d') AS expiry_date,
+                    CASE WHEN h.Status = 'Ready' THEN rc.Barcode
+                         ELSE (SELECT c.Barcode FROM Copy c
+                                WHERE c.Item_id = h.Item_id
+                                  AND c.Status = 'available'
+                                  AND c.Copy_id NOT IN (SELECT Reserved_copy_id FROM Hold
+                                                         WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
+                                ORDER BY c.Copy_id LIMIT 1)
+                    END AS barcode,
+                    (SELECT COUNT(*) FROM Hold o
+                      WHERE o.Item_id = h.Item_id AND o.Status = 'Active'
+                        AND (o.Hold_date < h.Hold_date
+                             OR (o.Hold_date = h.Hold_date AND o.Hold_id < h.Hold_id))) AS ahead
                FROM Hold h
                JOIN CatalogItem ci ON ci.Item_id = h.Item_id
-               JOIN Copy c ON c.Copy_id = h.Reserved_copy_id
+               LEFT JOIN Copy rc ON rc.Copy_id = h.Reserved_copy_id
               WHERE h.Member_id = ?
-                AND h.Status = 'Ready'
-              ORDER BY h.Expiry_date, h.Hold_id`,
+                AND h.Status IN ('Active', 'Ready')
+              ORDER BY (h.Status = 'Ready') DESC, h.Hold_date, h.Hold_id`,
             [member.Member_id]);
 
-        res.json({ member: `${member.First_name} ${member.Last_name}`, holds });
+        // An Active hold can be handed over only with a copy in hand and nobody ahead.
+        // (A Ready hold already has its copy and its turn.)
+        const rows = holds.map(h => ({
+            holdId: h.Hold_id,
+            status: h.status,
+            title: h.title,
+            placedDate: h.placed_date,
+            expiryDate: h.expiry_date,
+            ahead: Number(h.ahead),
+            // null means "no Check out button"; the page explains why from status and ahead.
+            barcode: h.status === 'Ready' || (Number(h.ahead) === 0 && h.barcode) ? h.barcode : null
+        }));
+
+        res.json({ member: `${member.First_name} ${member.Last_name}`, holds: rows });
     } catch (err) {
         // Log the real reason for us; show the staff member a generic message.
-        console.error('Ready holds lookup failed:', err);
+        console.error('Member holds lookup failed:', err);
         res.status(500).json({ message: 'Could not load the member\'s holds. Please try again.' });
     }
 });
