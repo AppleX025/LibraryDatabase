@@ -50,6 +50,15 @@
                 </div>
             </form>
         </section>
+
+        <!-- Filled in by the script below when staff finish typing a member:
+             lists the member's holds that are ready for pickup, with each copy's barcode.
+             Hidden until there is something to show. -->
+        <section class="panel" id="readyHolds" style="margin-top: 16px" hidden>
+            <h2>Holds ready for pickup</h2>
+            <p class="muted" id="readyHoldsMember"></p>
+            <ul id="readyHoldsList"></ul>
+        </section>
     </main>
 
     <script>
@@ -118,6 +127,9 @@
                 if (response.ok) {
                     form.barcode.value = '';
                     form.barcode.focus();
+                    // The hold that was just picked up is no longer "ready", so reload
+                    // the list (a picked-up hold disappears from it).
+                    showReadyHolds();
                 }
             } catch (err) {
                 // fetch itself failed: the server is not running or the network is down.
@@ -127,6 +139,72 @@
                 submitButton.disabled = false;
             }
         });
+
+        // ---- Holds ready for pickup --------------------------------------------
+        // When staff finish typing the member (they click away or press Tab), ask the
+        // server which of that member's holds are ready (GET /api/circulation/ready-holds)
+        // and list each waiting copy's barcode. Clicking a barcode fills the barcode box.
+        const readyHoldsBox = document.getElementById('readyHolds');
+        const readyHoldsMember = document.getElementById('readyHoldsMember');
+        const readyHoldsList = document.getElementById('readyHoldsList');
+
+        // Hides the list and empties it (used when the member box is cleared or nothing is waiting).
+        function clearReadyHolds() {
+            readyHoldsBox.hidden = true;
+            readyHoldsList.replaceChildren();   // removes every <li> inside the list
+        }
+
+        // Asks the server for the member's Ready holds and shows them.
+        async function showReadyHolds() {
+            const memberText = form.member.value.trim();
+            if (!memberText) {
+                clearReadyHolds();
+                return;
+            }
+            try {
+                // encodeURIComponent makes the typed text safe to put in an address
+                // (for example, the "@" and "+" in an email).
+                const response = await fetch('/api/circulation/ready-holds?member=' + encodeURIComponent(memberText));
+                if (!response.ok) {
+                    // Unknown member or not staff: the checkout itself will explain, so just hide the list.
+                    clearReadyHolds();
+                    return;
+                }
+                const data = await response.json();
+                if (data.holds.length === 0) {
+                    clearReadyHolds();   // nothing waiting for this member, so nothing to show
+                    return;
+                }
+
+                readyHoldsMember.textContent = data.member + ' has ' + data.holds.length +
+                    (data.holds.length === 1 ? ' hold' : ' holds') + ' ready. Click a barcode to use it.';
+                readyHoldsList.replaceChildren();
+                for (const hold of data.holds) {
+                    const item = document.createElement('li');
+                    // A button (not a link) because clicking it only fills in the form.
+                    const button = document.createElement('button');
+                    button.type = 'button';          // so it does not submit the checkout form
+                    button.className = 'secondary';  // the grey button style from catalog-admin.css
+                    button.textContent = hold.barcode;
+                    button.addEventListener('click', () => {
+                        form.barcode.value = hold.barcode;
+                        form.barcode.focus();
+                    });
+                    // textContent keeps titles with "<" or "&" from being read as HTML.
+                    item.append(button, ' ' + hold.title + ' (pick up by ' + hold.expiry_date + ')');
+                    readyHoldsList.append(item);
+                }
+                readyHoldsBox.hidden = false;
+            } catch (err) {
+                // The list is only a helper; if it cannot load, staff can still type the barcode.
+                clearReadyHolds();
+            }
+        }
+
+        // "change" fires when the box loses focus after its text was edited.
+        form.member.addEventListener('change', showReadyHolds);
+        // The Clear button resets the form, so hide the list too.
+        form.addEventListener('reset', clearReadyHolds);
 
         // Run the staff check as soon as the page opens.
         checkStaff();
