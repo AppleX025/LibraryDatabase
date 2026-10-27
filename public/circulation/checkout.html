@@ -33,15 +33,18 @@
         <div id="notice" role="status" aria-live="polite" hidden></div>
 
         <section class="panel">
-            <form id="checkoutForm">
+            <!-- novalidate turns off the browser's own "Please fill out this field" popup.
+                 If something is missing, the server answers "Enter both a copy barcode and a member."
+                 and the page shows it in the red notice box above. -->
+            <form id="checkoutForm" novalidate>
                 <div class="form-grid">
                     <div>
                         <label for="barcode">Copy barcode</label>
-                        <input id="barcode" name="barcode" placeholder="e.g. LIB-0001" autocomplete="off" required>
+                        <input id="barcode" name="barcode" placeholder="e.g. LIB-0001" autocomplete="off">
                     </div>
                     <div>
                         <label for="member">Member username or email</label>
-                        <input id="member" name="member" placeholder="e.g. testmember" autocomplete="off" required>
+                        <input id="member" name="member" placeholder="e.g. testmember" autocomplete="off">
                     </div>
                 </div>
                 <div class="actions">
@@ -148,8 +151,8 @@
         // ---- The member's holds -------------------------------------------------
         // As staff type the member (username or email), ask the server for that member's
         // open holds (GET /api/circulation/member-holds) and list each one. A hold that can
-        // be handed over now gets a "Check out" button. Staff never need the barcode: the
-        // button sends the copy's barcode (kept in the page) for them.
+        // be handed over now gets a "Check out" button and shows the copy's barcode; the button
+        // sends that barcode for staff, so they do not have to type it.
         const readyHoldsBox = document.getElementById('readyHolds');
         const readyHoldsMember = document.getElementById('readyHoldsMember');
         const readyHoldsList = document.getElementById('readyHoldsList');
@@ -216,7 +219,9 @@
                         item.append(button, ' ');
                     }
                     // textContent keeps titles with "<" or "&" from being read as HTML.
-                    item.append(hold.title + ' (' + holdNote(hold) + ')');
+                    // The barcode (when a copy can be handed over) is shown so staff can find the copy.
+                    const copyText = hold.barcode ? ' [' + hold.barcode + ']' : '';
+                    item.append(hold.title + copyText + ' (' + holdNote(hold) + ')');
                     readyHoldsList.append(item);
                 }
                 readyHoldsBox.hidden = false;
