@@ -132,6 +132,23 @@
         form.addEventListener('submit', async (event) => {
             // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
             event.preventDefault();
+            const barcodeText = form.barcode.value.trim();
+            const memberText = form.member.value.trim();
+
+            // Nothing typed at all: this is the only time the red message appears.
+            if (!barcodeText && !memberText) {
+                showNotice('Enter a copy barcode or a member.', true);
+                return;
+            }
+            // Only one box filled: there is nothing to lend yet, and nothing is wrong either.
+            // Show the holds that match (the list under the form) so staff can use a Check out
+            // button there, with no red message.
+            if (!barcodeText || !memberText) {
+                notice.hidden = true;
+                showReadyHolds();
+                return;
+            }
+
             // Grey out the button while waiting, so one checkout cannot be sent twice.
             submitButton.disabled = true;
 
@@ -157,7 +174,7 @@
         // A hold that can be handed over now gets a "Check out" button and shows its copy's
         // barcode; the button sends that barcode and that member for staff, so nothing has
         // to be typed. With nothing typed the list is hidden, and pressing the main
-        // Check out button shows the red message.
+        // Check out button shows the red message (the only time red appears).
         const readyHoldsBox = document.getElementById('readyHolds');
         const readyHoldsMember = document.getElementById('readyHoldsMember');
         const readyHoldsList = document.getElementById('readyHoldsList');
@@ -205,8 +222,16 @@
                 // something else, and the newer request will show the right list.
                 if (form.barcode.value.trim() !== barcodeText || form.member.value.trim() !== memberText) return;
                 if (!response.ok) {
-                    // Unknown member or barcode, or not staff: the checkout itself will explain, so just hide the list.
-                    clearReadyHolds();
+                    // 404 = no such member or copy: say so inside the Holds box (a plain line, not red).
+                    // Any other problem (for example not logged in as staff): just hide the list.
+                    if (response.status === 404) {
+                        const missing = await response.json();
+                        readyHoldsList.replaceChildren();
+                        readyHoldsMember.textContent = missing.message;
+                        readyHoldsBox.hidden = false;
+                    } else {
+                        clearReadyHolds();
+                    }
                     return;
                 }
                 const data = await response.json();
