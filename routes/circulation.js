@@ -81,9 +81,18 @@ router.post('/checkout', isStaff, async (req, res) => {
     const memberText = textField(req.body?.member);
     const staffId = req.session.userId;   // the staff member processing the checkout
 
-    // Both boxes must be filled in before we bother the database.
-    if (!barcode || !memberText) {
-        return res.status(400).json({ message: 'Enter both a copy barcode and a member.' });
+    // Both boxes must be filled in before we bother the database. The message says
+    // what is missing: staff can also check out from a member's holds list on the
+    // checkout page (the buttons there send the barcode for them), so "no barcode" is
+    // not a mistake in itself, and the message points them to that list.
+    if (!barcode && !memberText) {
+        return res.status(400).json({ message: 'Enter a copy barcode or a member.' });
+    }
+    if (!memberText) {
+        return res.status(400).json({ message: 'Enter the member\'s username or email.' });
+    }
+    if (!barcode) {
+        return res.status(400).json({ message: 'Enter a copy barcode, or use a Check out button in this member\'s holds list.' });
     }
 
     // All the checks and the insert run on one connection inside a
