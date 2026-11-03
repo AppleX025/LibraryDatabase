@@ -70,6 +70,144 @@ function drawMenu(links) {
 }
 
 // ---------------------------------------------------------------------
+// Logo, footer and shortcut tiles
+// ---------------------------------------------------------------------
+// The look of the whole app comes from theme.css. These small helpers add the
+// parts that need a little script: the logo, the footer, and the home-page tiles.
+
+// addLogo(): puts the small three-book logo in front of the name in the header.
+// The logo is an inline <svg> drawn here, so the app needs no image file.
+function addLogo() {
+  const brand = document.querySelector('header div');
+  // Not every page has a header, and the logo must only be added once.
+  if (!brand || brand.querySelector('svg')) return;
+
+  const svgNS = 'http://www.w3.org/2000/svg';   // the address that tells the browser "this is an SVG shape"
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '34');
+  svg.setAttribute('height', '34');
+  svg.setAttribute('viewBox', '0 0 40 40');
+  svg.setAttribute('aria-hidden', 'true');       // decoration only: screen readers skip it
+
+  // Three book spines: [x, y, height, color, opacity]
+  const spines = [
+    [4, 6, 28, '#0f4c5c', '1'],
+    [15, 10, 24, '#f2a900', '1'],
+    [26, 4, 30, '#0f4c5c', '0.7']
+  ];
+  for (const [x, y, height, color, opacity] of spines) {
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', '9');
+    rect.setAttribute('height', height);
+    rect.setAttribute('rx', '2');
+    rect.setAttribute('fill', color);
+    rect.setAttribute('opacity', opacity);
+    svg.appendChild(rect);
+  }
+  brand.prepend(svg);   // prepend = put it first, before the name
+}
+
+// footerColumns(me): the link columns at the bottom of the page, for this kind of visitor.
+// Each column is [title, [[text, address], ...]].
+function footerColumns(me) {
+  const find = [['Search the catalog', '/search.html']];
+  if (!me.loggedIn) {
+    return [['Find', find], ['Account', [['Login', '/login.html'], ['Register', '/register.html']]]];
+  }
+  if (me.isStaff) {
+    return [
+      ['Find', find],
+      ['Circulation', [['Checkout', '/circulation/checkout.html'], ['Return', '/circulation/return.html'],
+                       ['Renew', '/circulation/renew.html'], ['Open loans', '/circulation/open-loans.html']]],
+      ['Manage', [['Catalog', '/catalog-admin.html'], ['Members', '/members-admin.html'],
+                  ['Fines', '/fines-admin.html'], ['Reports', '/reports/overdue.html']]]
+    ];
+  }
+  return [
+    ['Find', find],
+    ['My account', [['My Loans', '/circulation/open-loans.html'], ['My Holds', '/my-holds.html'],
+                    ['My Fines', '/my-fines.html'], ['My Profile', '/profile.html']]]
+  ];
+}
+
+// drawFooter(me): adds the footer (theme.css styles it) to the end of the page.
+function drawFooter(me) {
+  // A page that already has a footer, or was given one before, is left alone.
+  if (document.querySelector('.site-footer')) return;
+
+  const footer = document.createElement('footer');
+  footer.className = 'site-footer';
+
+  // Left block: the name and one line about the project.
+  const about = document.createElement('div');
+  about.className = 'about';
+  const name = document.createElement('strong');
+  name.textContent = 'Library Database';
+  const line = document.createElement('span');
+  line.textContent = 'A library management project for COSC 3380, University of Houston.';
+  about.append(name, line);
+  footer.appendChild(about);
+
+  // One block per column, each with a title and its links.
+  for (const [title, links] of footerColumns(me)) {
+    const column = document.createElement('div');
+    column.className = 'column';
+    const heading = document.createElement('strong');
+    heading.textContent = title;
+    column.appendChild(heading);
+    for (const [text, address] of links) {
+      const a = document.createElement('a');
+      a.textContent = text;
+      a.href = address;
+      column.appendChild(a);
+    }
+    footer.appendChild(column);
+  }
+  document.body.appendChild(footer);
+}
+
+// shortcutTiles(me): the big tiles on the home page: [title, short line, address].
+function shortcutTiles(me) {
+  if (me.isStaff) {
+    return [
+      ['Checkout',   'Lend an item, or pick up a hold.',   '/circulation/checkout.html'],
+      ['Return',     'Take an item back in.',              '/circulation/return.html'],
+      ['Fines',      'Collect or waive fines.',            '/fines-admin.html'],
+      ['Members',    'Find and edit member accounts.',     '/members-admin.html'],
+      ['Reports',    'Overdue loans, fines, borrowing.',   '/reports/overdue.html']
+    ];
+  }
+  return [
+    ['My Loans',         'What is due, and renew.',            '/circulation/open-loans.html'],
+    ['My Holds',         'Your place in line and pickups.',    '/my-holds.html'],
+    ['My Fines',         'See what you owe and pay it.',       '/my-fines.html'],
+    ['Notifications',    'Hold-ready and fine notices.',       '/my-notifications.html'],
+    ['My Profile',       'Update your details and password.',  '/profile.html']
+  ];
+}
+
+// drawShortcuts(me): fills the <div id="shortcuts"> on the home page, only for logged-in visitors.
+// Other pages do not have that div, so nothing happens there.
+function drawShortcuts(me) {
+  const spot = document.getElementById('shortcuts');
+  if (!spot || !me.loggedIn) return;
+
+  for (const [title, line, address] of shortcutTiles(me)) {
+    const a = document.createElement('a');
+    a.href = address;
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    const span = document.createElement('span');
+    span.textContent = line;
+    a.append(strong, span);
+    spot.appendChild(a);
+  }
+  spot.hidden = false;   // the tiles start hidden so a visitor who is not logged in never sees an empty box
+}
+
+// ---------------------------------------------------------------------
 // Page guard
 // ---------------------------------------------------------------------
 // A page marks who may use it with an attribute on its <body>:
@@ -108,8 +246,11 @@ async function setupAuthLink() {
   // Not allowed on this page? Then the visitor is already on their way elsewhere.
   if (guardPage(me)) return;
 
-  // Draw the menu for this kind of visitor.
+  // Draw the menu for this kind of visitor, then the logo, the footer and the home-page tiles.
   drawMenu(buildMenu(me));
+  addLogo();
+  drawFooter(me);
+  drawShortcuts(me);
 
   // Find the empty <span id="authLink"> on the page. We put the control inside it.
   const spot = document.getElementById('authLink');

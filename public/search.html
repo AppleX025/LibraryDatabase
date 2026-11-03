@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Search the Catalog</title>
   <link rel="stylesheet" href="/search.css">
+<!-- The shared look (colors, header, footer). Loaded last so it overrides the older rules above. -->
+<link rel="stylesheet" href="/theme.css">
 </head>
 <body>
   <header>
@@ -22,28 +24,46 @@
     </nav>
   </header>
 
+  <!-- Banner at the top of the home page: a big search box and one-click category buttons.
+       The box, the category list, the Search button and the message line keep the same ids
+       as before, so the script below works unchanged. -->
+  <section class="hero">
+    <h1>Find your next read.</h1>
+    <p>Search books, board games, DVDs and more. See what is on the shelf and place a hold when every copy is out.</p>
+
+    <div class="search-bar">
+      <input id="q" type="text" placeholder="Title or author" aria-label="Title or author">
+      <select id="category" aria-label="Category">
+        <option value="">All categories</option>
+        <option value="book">Book</option>
+        <option value="videogame">Videogame</option>
+        <option value="boardgame">BoardGame</option>
+        <option value="dvd">DVD</option>
+        <option value="music">Music</option>
+        <option value="newspaper">Newspaper</option>
+        <option value="researchpaper">ResearchPaper</option>
+      </select>
+      <button id="go">Search</button>
+    </div>
+
+    <!-- One button per category. data-category holds the value the category list uses. -->
+    <div class="chips">
+      <button type="button" data-category="book">Books</button>
+      <button type="button" data-category="boardgame">Board games</button>
+      <button type="button" data-category="dvd">DVDs</button>
+      <button type="button" data-category="music">Music</button>
+      <button type="button" data-category="videogame">Videogames</button>
+    </div>
+
+    <p id="message"></p>
+  </section>
+
   <main>
-    <h1>Search the Catalog</h1>
-    <p class="muted">Find books, games, DVDs and more by title or author.</p>
+    <!-- Tiles for a logged-in visitor (My Loans, My Holds ...). auth-nav.js fills them and shows them. -->
+    <div class="shortcuts" id="shortcuts" hidden></div>
 
     <section class="panel">
-      <div class="search-bar">
-        <input id="q" type="text" placeholder="Title or author">
-        <select id="category">
-          <option value="">All categories</option>
-          <option value="book">Book</option>
-          <option value="videogame">Videogame</option>
-          <option value="boardgame">BoardGame</option>
-          <option value="dvd">DVD</option>
-          <option value="music">Music</option>
-          <option value="newspaper">Newspaper</option>
-          <option value="researchpaper">ResearchPaper</option>
-        </select>
-        <button id="go">Search</button>
-      </div>
-
-      <p id="message"></p>
-
+      <h2>Results</h2>
       <div class="table-scroll">
         <table>
           <thead>
@@ -111,6 +131,14 @@
       await search();
       // Now set the message, so it stays on the page under the search bar
       message.textContent = data.message || data.error;
+    }
+
+    // A category button picks that category in the list and searches right away.
+    for (const chip of document.querySelectorAll('.chips button')) {
+      chip.addEventListener('click', () => {
+        document.getElementById('category').value = chip.dataset.category;
+        search();
+      });
     }
 
     document.getElementById('go').addEventListener('click', search);

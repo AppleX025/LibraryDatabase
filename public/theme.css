@@ -1,0 +1,422 @@
+/* =====================================================================
+   theme.css
+   The shared look of the whole app: colors, font, header, buttons, cards,
+   tables, the home-page banner and the footer.
+
+   HOW IT WORKS: every page loads its own stylesheet first (catalog-admin.css,
+   search.css, login.css, members-admin.css or reports.css) and then loads this
+   file LAST. Both files use the same selectors (header, nav, main, .panel,
+   button, table...), and when two rules are equally specific the later one
+   wins, so the rules below replace the older colors and shapes everywhere
+   while the older files still provide each page's layout.
+
+   To change the colors of the whole app, change the values in :root below.
+   ===================================================================== */
+
+/* The Public Sans font. If it cannot load, the browser uses its normal font. */
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ---------- The colors and sizes used everywhere ---------- */
+:root {
+  --brand: #0f4c5c;         /* deep teal: header text, banner, footer, main buttons */
+  --brand-dark: #0a3640;    /* darker teal for hover */
+  --accent: #f2a900;        /* amber: the main action (Search, Check out) */
+  --ink: #13262b;           /* body text */
+  --muted: #4a5b61;         /* helper text */
+  --line: #d9e2e3;          /* borders */
+  --soft: #f3f6f6;         /* page background */
+  --head: #e6eff0;          /* table header background */
+  --radius: 14px;
+
+  font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--soft);
+}
+
+body {
+  background: var(--soft);
+  color: var(--ink);
+  /* The footer sticks to the bottom of short pages */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The page content grows to fill the space between header and footer */
+main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+h1, h2 {
+  color: var(--brand);
+  letter-spacing: -0.01em;
+  font-weight: 800;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* ---------- Header: white bar, teal name, pill buttons ---------- */
+header {
+  background: #ffffff;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  padding: 14px max(20px, calc((100vw - 1200px) / 2));
+  gap: 12px 28px;
+  flex-wrap: wrap;
+}
+
+/* "Library Database" with the little logo in front (the logo is added by auth-nav.js) */
+header div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+header div strong {
+  color: var(--brand);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* The " / Checkout" text next to the name */
+header div span {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+header a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+header a:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+/* The menu links. The page you are on gets a teal word and an amber underline. */
+header nav {
+  gap: 6px 22px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+header nav a[aria-current="page"] {
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 3px;
+}
+
+/* "Hello, Eva!" */
+.greeting {
+  color: var(--muted);
+  margin-right: 10px;
+  font-weight: 600;
+}
+
+/* Log out button and Login link: small round pills */
+#authLink button,
+#authLink a {
+  display: inline-block;
+  background: var(--brand);
+  color: #ffffff;
+  border: 2px solid var(--brand);
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+#authLink a:hover {
+  color: #ffffff;
+  text-decoration: none;
+  background: var(--brand-dark);
+}
+
+/* Links inside the page (like "Back to search" on the login page) are teal, not the browser's blue */
+main a {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* ---------- Cards, buttons, form fields ---------- */
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+button {
+  background: var(--brand);
+  color: #ffffff;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+button:hover {
+  background: var(--brand-dark);
+  filter: none;
+}
+
+/* Quiet buttons (Cancel, Clear, Undo) keep the outline look */
+button.secondary,
+button.quiet {
+  background: #ffffff;
+  color: var(--brand);
+  border: 2px solid var(--brand);
+}
+
+button.secondary:hover,
+button.quiet:hover {
+  background: var(--head);
+}
+
+/* The one main action on a page is amber */
+#go,
+#submitButton,
+#saveButton {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+#go:hover,
+#submitButton:hover,
+#saveButton:hover {
+  background: #d99700;
+}
+
+input,
+select {
+  border: 1.5px solid #8aa2a8;
+  border-radius: 10px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #ffffff;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+label {
+  color: var(--ink);
+}
+
+/* ---------- Tables ---------- */
+th {
+  background: var(--head);
+  color: var(--ink);
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  background: var(--head);
+  color: var(--brand);
+}
+
+.tabs button.active {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.report-tabs a.active {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+/* ---------- Home page: banner with the big search box ---------- */
+.hero {
+  background: var(--brand);
+  color: #ffffff;
+  padding: 48px max(20px, calc((100vw - 1200px) / 2)) 44px;
+}
+
+.hero h1 {
+  color: #ffffff;
+  font-size: 46px;
+  line-height: 1.05;
+  margin: 0 0 12px;
+}
+
+.hero p {
+  color: #d4e6ea;
+  font-size: 19px;
+  line-height: 1.4;
+  max-width: 600px;
+  margin: 0 0 24px;
+}
+
+/* The search box sits on a white rounded bar inside the banner */
+.hero .search-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 10px;
+  max-width: 680px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero .search-bar input,
+.hero .search-bar select {
+  margin: 0;
+  border-color: var(--line);
+  min-height: 46px;
+}
+
+.hero .search-bar input {
+  flex: 1 1 220px;
+  border: 0;
+  font-size: 18px;
+}
+
+.hero .search-bar select {
+  width: auto;
+}
+
+.hero .search-bar button {
+  min-height: 46px;
+  padding: 10px 28px;
+  font-size: 17px;
+}
+
+/* The row of category buttons under the search box */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.chips button {
+  background: transparent;
+  color: #ffffff;
+  border: 1.5px solid #8fb8c2;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 15px;
+}
+
+.chips button:hover {
+  background: #1b6174;
+}
+
+/* The message line under the search box ("Hold placed.") */
+.hero #message {
+  color: #ffffff;
+  margin: 14px 0 0;
+}
+
+/* ---------- Shortcut tiles (My Loans, My Holds ...) ---------- */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px;
+  margin: 8px 0 28px;
+}
+
+.shortcuts a {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.shortcuts a:hover {
+  border-color: var(--brand);
+  text-decoration: none;
+}
+
+.shortcuts strong {
+  font-size: 18px;
+  color: var(--brand);
+}
+
+.shortcuts span {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* ---------- Footer (added to every page by auth-nav.js) ---------- */
+.site-footer {
+  background: var(--brand);
+  color: #ffffff;
+  margin-top: 48px;
+  padding: 40px max(20px, calc((100vw - 1200px) / 2)) 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 64px;
+}
+
+.site-footer .about {
+  flex: 1 1 260px;
+}
+
+.site-footer .about strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.site-footer .about span {
+  color: #d4e6ea;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.site-footer .column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.site-footer .column strong {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.site-footer a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 700px) {
+  .hero h1 {
+    font-size: 34px;
+  }
+
+  header nav {
+    justify-content: flex-start;
+  }
+}
