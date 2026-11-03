@@ -27,7 +27,7 @@
 
     <main>
         <h1>Check out an item</h1>
-        <p class="muted">Scan or type the copy's barcode, then enter the member's username or email.</p>
+        <p class="muted">Enter the copy's ID number, then the member's username or email.</p>
 
         <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
         <div id="notice" role="status" aria-live="polite" hidden></div>
@@ -36,8 +36,8 @@
             <form id="checkoutForm">
                 <div class="form-grid">
                     <div>
-                        <label for="barcode">Copy barcode</label>
-                        <input id="barcode" name="barcode" placeholder="e.g. LIB-0001" autocomplete="off" required>
+                        <label for="copy_id">Copy ID</label>
+                        <input id="copy_id" name="copy_id" type="number" min="1" step="1" placeholder="e.g. 1" autocomplete="off" required>
                     </div>
                     <div>
                         <label for="member">Member username or email</label>
@@ -54,7 +54,7 @@
 
     <script>
         // How this page works:
-        //   1. Staff fill in the barcode and member, then press "Check out".
+        //   1. Staff fill in the copy ID and member, then press "Check out".
         //   2. The script sends both values to POST /api/circulation/checkout
         //      (routes/circulation.js), which checks every lending rule.
         //   3. The server answers with a message, which is shown in the notice
@@ -87,8 +87,7 @@
             }
         }
 
-        // Runs when the form is submitted (the button is clicked, or Enter is pressed,
-        // which is what a barcode scanner does after each scan).
+        // Runs when the form is submitted (the button is clicked or Enter is pressed).
         form.addEventListener('submit', async (event) => {
             // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
             event.preventDefault();
@@ -102,7 +101,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        barcode: form.barcode.value,
+                        copy_id: form.copy_id.value,
                         member: form.member.value
                     })
                 });
@@ -114,10 +113,10 @@
                 // (400 rule broken, 403 not staff, 500 server problem), so errors show red.
                 showNotice(data.message, !response.ok);
 
-                // On success, clear the barcode so the next item can be scanned for the same member.
+                // On success, clear the copy ID so the next item can be entered for the same member.
                 if (response.ok) {
-                    form.barcode.value = '';
-                    form.barcode.focus();
+                    form.copy_id.value = '';
+                    form.copy_id.focus();
                 }
             } catch (err) {
                 // fetch itself failed: the server is not running or the network is down.

@@ -27,7 +27,7 @@
 
     <main>
         <h1>Renew a loan</h1>
-        <p class="muted">Scan or type the barcode of the copy the member wants to keep longer.
+        <p class="muted">Enter the ID number of the copy the member wants to keep longer.
             Standard loans only; each renewal adds 14 days.</p>
 
         <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
@@ -35,8 +35,8 @@
 
         <section class="panel">
             <form id="renewForm">
-                <label for="barcode">Copy barcode</label>
-                <input id="barcode" name="barcode" placeholder="e.g. LIB-0006" autocomplete="off" required autofocus>
+                <label for="copy_id">Copy ID</label>
+                <input id="copy_id" name="copy_id" type="number" min="1" step="1" placeholder="e.g. 6" autocomplete="off" required autofocus>
                 <div class="actions">
                     <button id="submitButton" type="submit">Renew</button>
                     <button type="reset" class="secondary">Clear</button>
@@ -48,7 +48,7 @@
     <script>
         // How this page works (same pattern as checkout.html, which has
         // line-by-line notes):
-        //   1. Staff scan the barcode of the copy the member wants to keep longer.
+        //   1. Staff enter the ID of the copy the member wants to keep longer.
         //   2. The script sends it to POST /api/circulation/renew, which checks:
         //      standard loan only, within the member type's renewal limit, and
         //      no other member has an Active or Ready hold on the item.
@@ -77,7 +77,7 @@
             }
         }
 
-        // Runs on each scan (a scanner presses Enter, which submits the form).
+        // Runs when the form is submitted (the button is clicked or Enter is pressed).
         form.addEventListener('submit', async (event) => {
             // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
             event.preventDefault();
@@ -85,11 +85,11 @@
             submitButton.disabled = true;
 
             try {
-                // Send the barcode to the server and wait for its answer.
+                // Send the copy ID to the server and wait for its answer.
                 const response = await fetch('/api/circulation/renew', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: form.barcode.value })
+                    body: JSON.stringify({ copy_id: form.copy_id.value })
                 });
                 const data = await response.json();
 
@@ -97,11 +97,11 @@
                 // response.ok is false for error answers, so those show in red.
                 showNotice(data.message, !response.ok);
 
-                // Clear the barcode after a renewal; after an error it stays so staff can see it.
+                // Clear the copy ID after a renewal; after an error it stays so staff can see it.
                 if (response.ok) {
-                    form.barcode.value = '';
+                    form.copy_id.value = '';
                 }
-                form.barcode.focus();
+                form.copy_id.focus();
             } catch (err) {
                 // fetch itself failed: the server is not running or the network is down.
                 showNotice('Could not reach the server. Please try again.', true);

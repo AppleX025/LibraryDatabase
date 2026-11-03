@@ -67,22 +67,32 @@ function textField(value) {
     return typeof value === 'string' ? value.trim() : '';
 }
 
+// Reads one whole-number id (a Copy ID, for example) from a form. Returns 0 when
+// it is missing or not a positive whole number, so the route answers "Enter ..."
+// instead of running a query with rubbish. Copies are identified by their Copy ID
+// (the Copy table's primary key): the library has no barcode scanners, so staff
+// type the number shown on the copy rather than scanning a barcode.
+function idField(value) {
+    const text = textField(value);
+    return /^[0-9]+$/.test(text) ? Number(text) : 0;
+}
+
 // ---------------------------------------------------------------------
 // POST /api/circulation/checkout
-// Body: { barcode, member }   member = the member's username or email
+// Body: { copy_id, member }   member = the member's username or email
 // Checks every lending rule, then saves the Loan with the logged-in
 // staff member's id. Staff only.
 // ---------------------------------------------------------------------
 router.post('/checkout', isStaff, async (req, res) => {
     // req.body holds what the page sent. "?." means: if there is no body at all,
-    // give undefined instead of crashing (textField then turns it into '').
-    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
+    // give undefined instead of crashing (idField then turns it into 0).
+    const copyId = idField(req.body?.copy_id);
     const memberText = textField(req.body?.member);
     const staffId = req.session.userId;   // the staff member processing the checkout
 
     // Both boxes must be filled in before we bother the database.
-    if (!barcode || !memberText) {
-        return res.status(400).json({ message: 'Enter both a copy barcode and a member.' });
+    if (!copyId || !memberText) {
+        return res.status(400).json({ message: 'Enter both a copy ID and a member.' });
     }
 
     // All the checks and the insert run on one connection inside a
@@ -133,24 +143,24 @@ router.post('/checkout', isStaff, async (req, res) => {
             throw new RuleError('You cannot check out items to yourself. A different staff member must process this checkout.');
         }
 
-        // 2. Find the copy by its barcode, with its item's title and type.
+        // 2. Find the copy by its ID, with its item's title and type.
         // FOR UPDATE OF c locks just this copy's row, so two staff cannot lend
         // the same copy at the same moment.
         const [copies] = await conn.query(
             `SELECT c.Copy_id, c.Item_id, c.Status, ci.Title, ci.Item_type
                FROM Copy c
                JOIN CatalogItem ci ON ci.Item_id = c.Item_id
-              WHERE c.Barcode = ?
+              WHERE c.Copy_id = ?
                 FOR UPDATE OF c`,
-            [barcode]);
+            [copyId]);
         const copy = copies[0];
 
         if (!copy) {
-            throw new RuleError(`No copy found with barcode "${barcode}".`);
+            throw new RuleError(`No copy found with ID ${copyId}.`);
         }
         // Status is 'available', 'on loan', 'lost' or 'withdrawn'. Only the first can be lent.
         if (copy.Status !== 'available') {
-            throw new RuleError(`"${copy.Title}" (${barcode}) cannot be checked out because it is ${copy.Status}.`);
+            throw new RuleError(`"${copy.Title}" (copy #${copyId}) cannot be checked out because it is ${copy.Status}.`);
         }
 
         // The copy must not already be on an open loan (a loan with no return date).
@@ -160,7 +170,7 @@ router.post('/checkout', isStaff, async (req, res) => {
             'SELECT Loan_id FROM Loan WHERE Copy_id = ? AND Return_date IS NULL',
             [copy.Copy_id]);
         if (openLoans.length > 0) {
-            throw new RuleError(`"${copy.Title}" (${barcode}) is already checked out.`);
+            throw new RuleError(`"${copy.Title}" (copy #${copyId}) is already checked out.`);
         }
 
         // The copy must not be set aside for someone else's Ready hold.
@@ -171,7 +181,7 @@ router.post('/checkout', isStaff, async (req, res) => {
               WHERE Reserved_copy_id = ? AND Status = 'Ready' AND Member_id <> ?`,
             [copy.Copy_id, member.Member_id]);
         if (otherHolds.length > 0) {
-            throw new RuleError(`"${copy.Title}" (${barcode}) is reserved for another member's hold.`);
+            throw new RuleError(`"${copy.Title}" (copy #${copyId}) is reserved for another member's hold.`);
         }
 
         // 3. Unpaid fines. Fines belong to loans, so join through Loan to reach the member.
@@ -270,7 +280,7 @@ router.post('/checkout', isStaff, async (req, res) => {
                 loanType: loan.Loan_type,
                 dueDate: loan.due_date,
                 title: copy.Title,
-                barcode,
+                copyId: copy.Copy_id,
                 member: memberName
             }
         });
@@ -310,7 +320,7 @@ const RETURN_OUTCOMES = ['ok', 'damaged', 'lost'];
 
 // ---------------------------------------------------------------------
 // POST /api/circulation/return
-// Body: { barcode, outcome }   outcome = 'ok' | 'damaged' | 'lost'
+// Body: { copy_id, outcome }   outcome = 'ok' | 'damaged' | 'lost'
 // Closes the copy's open loan: Return_date (today) and Return_staff_id
 // (the logged-in staff member) are saved together, because the database
 // requires both or neither. If the item is late, the trigger
@@ -320,14 +330,14 @@ const RETURN_OUTCOMES = ['ok', 'damaged', 'lost'];
 // paid for in full, so any overdue fine on a late return is waived. Staff only.
 // ---------------------------------------------------------------------
 router.post('/return', isStaff, async (req, res) => {
-    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
+    const copyId = idField(req.body?.copy_id);
     // The dropdown choice, lower-cased. Missing/anything else becomes '' and is
     // rejected below, so the route never guesses what to do with the copy.
     const outcome = textField(req.body?.outcome).toLowerCase();
     const staffId = req.session.userId;   // the staff member checking the item in
 
-    if (!barcode) {
-        return res.status(400).json({ message: 'Enter the copy barcode.' });
+    if (!copyId) {
+        return res.status(400).json({ message: 'Enter the copy ID.' });
     }
     // Only the three known choices are allowed (the page sends 'ok' by default).
     if (!RETURN_OUTCOMES.includes(outcome)) {
@@ -347,12 +357,12 @@ router.post('/return', isStaff, async (req, res) => {
             `SELECT c.Copy_id, c.Item_id, ci.Title, ci.Replacement_cost
                FROM Copy c
                JOIN CatalogItem ci ON ci.Item_id = c.Item_id
-              WHERE c.Barcode = ?`,
-            [barcode]);
+              WHERE c.Copy_id = ?`,
+            [copyId]);
         const copy = copies[0];
 
         if (!copy) {
-            throw new RuleError(`No copy found with barcode "${barcode}".`);
+            throw new RuleError(`No copy found with ID ${copyId}.`);
         }
 
         // The open loan is the one with no return date yet. DATEDIFF gives how many
@@ -370,7 +380,7 @@ router.post('/return', isStaff, async (req, res) => {
         const loan = loans[0];
 
         if (!loan) {
-            throw new RuleError(`"${copy.Title}" (${barcode}) is not checked out, so there is nothing to return.`);
+            throw new RuleError(`"${copy.Title}" (copy #${copyId}) is not checked out, so there is nothing to return.`);
         }
         const memberName = `${loan.First_name} ${loan.Last_name}`;
 
@@ -388,7 +398,7 @@ router.post('/return', isStaff, async (req, res) => {
             // A fine needs an amount (Fine.Amount is NOT NULL). If the item has no
             // replacement cost on file, stop with a message instead of guessing.
             if (copy.Replacement_cost === null) {
-                throw new RuleError(`"${copy.Title}" (${barcode}) has no replacement cost on file, ` +
+                throw new RuleError(`"${copy.Title}" (copy #${copyId}) has no replacement cost on file, ` +
                     `so a ${outcome} fine cannot be added. Set its replacement cost first.`);
             }
             replacementFine = Number(copy.Replacement_cost);   // MySQL sends DECIMAL as text
@@ -492,7 +502,7 @@ router.post('/return', isStaff, async (req, res) => {
             loan: {
                 loanId: loan.Loan_id,
                 title: copy.Title,
-                barcode,
+                copyId: copy.Copy_id,
                 member: memberName,
                 outcome,
                 daysLate: Math.max(loan.days_late, 0),   // never negative (early = 0)
@@ -519,17 +529,17 @@ router.post('/return', isStaff, async (req, res) => {
 
 // ---------------------------------------------------------------------
 // POST /api/circulation/renew
-// Body: { barcode }
+// Body: { copy_id }
 // Renews the copy's open loan: adds 1 to Renewal_count and moves the due
 // date out 14 days. Refused for short loans, when the member has used up
 // their type's renewals, or when another member has an Active or Ready
 // hold on the item. Staff only.
 // ---------------------------------------------------------------------
 router.post('/renew', isStaff, async (req, res) => {
-    const barcode = textField(req.body?.barcode).toUpperCase();   // barcodes are stored in upper case (LIB-0001), so lib-0001 finds the same copy
+    const copyId = idField(req.body?.copy_id);
 
-    if (!barcode) {
-        return res.status(400).json({ message: 'Enter the copy barcode.' });
+    if (!copyId) {
+        return res.status(400).json({ message: 'Enter the copy ID.' });
     }
 
     // Same pattern as checkout: one connection, one transaction.
@@ -541,7 +551,7 @@ router.post('/renew', isStaff, async (req, res) => {
 
         // 1. Find the copy's open loan, with the member's renewal limit, in one query.
         // LEFT JOIN keeps the copy row even when it has no open loan, so we can tell
-        // "no such barcode" (no row at all) apart from "not checked out" (row, but
+        // "no such copy ID" (no row at all) apart from "not checked out" (row, but
         // the loan columns are empty).
         // FOR UPDATE OF l locks the loan row so it cannot be renewed twice at the same moment.
         const [loans] = await conn.query(
@@ -554,16 +564,16 @@ router.post('/renew', isStaff, async (req, res) => {
                LEFT JOIN Loan l    ON l.Copy_id = c.Copy_id AND l.Return_date IS NULL
                LEFT JOIN Member m  ON m.Member_id = l.Member_id
                LEFT JOIN MemberType mt ON mt.Member_type_id = m.Member_type_id
-              WHERE c.Barcode = ?
+              WHERE c.Copy_id = ?
                 FOR UPDATE OF l`,
-            [barcode]);
+            [copyId]);
         const loan = loans[0];
 
         if (!loan) {
-            throw new RuleError(`No copy found with barcode "${barcode}".`);
+            throw new RuleError(`No copy found with ID ${copyId}.`);
         }
         if (!loan.Loan_id) {
-            throw new RuleError(`"${loan.Title}" (${barcode}) is not checked out, so it cannot be renewed.`);
+            throw new RuleError(`"${loan.Title}" (copy #${copyId}) is not checked out, so it cannot be renewed.`);
         }
         const memberName = `${loan.First_name} ${loan.Last_name}`;
 
@@ -612,7 +622,7 @@ router.post('/renew', isStaff, async (req, res) => {
             loan: {
                 loanId: loan.Loan_id,
                 title: loan.Title,
-                barcode,
+                copyId,
                 member: memberName,
                 dueDate: renewed.due_date,
                 renewalCount: renewed.Renewal_count
@@ -657,7 +667,7 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
                 // The view has no member name, so Member is joined on to add it.
                 // Oldest due date first, so the loans that are most overdue are at the top.
                 const [everyLoan] = await db.query(
-                    `SELECT v.Loan_id, v.title, v.item_type, v.barcode, v.loan_type,
+                    `SELECT v.Loan_id, v.title, v.item_type, v.copy_id, v.loan_type,
                             DATE_FORMAT(v.checkout_date, '%Y-%m-%d') AS checkout_date,
                             DATE_FORMAT(v.due_date, '%Y-%m-%d') AS due_date,
                             v.renewal_count, v.overdue_days,
@@ -689,10 +699,10 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
             [memberId]);
 
         // Member_Open_Loans already has one row per open loan, with the title,
-        // barcode and overdue_days worked out (see database/circulation.sql).
+        // copy_id and overdue_days worked out (see database/circulation.sql).
         // DATE_FORMAT sends the dates as plain YYYY-MM-DD text.
         const [loans] = await db.query(
-            `SELECT Loan_id, title, item_type, barcode, loan_type,
+            `SELECT Loan_id, title, item_type, copy_id, loan_type,
                     DATE_FORMAT(checkout_date, '%Y-%m-%d') AS checkout_date,
                     DATE_FORMAT(due_date, '%Y-%m-%d') AS due_date,
                     renewal_count, overdue_days

@@ -87,6 +87,8 @@ Merged and tested; thank you. Two small fixes remain, both in `routes/catalog.js
 - [ ] **A date shows one day off.** The server sends dates as JavaScript dates, which are in UTC, so in Texas a date can show as the day before. In the `SELECT`, ask MySQL for plain text instead: `DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired`. `routes/fines.js` already does this with `Date_assessed`; copy that pattern for every date the catalog routes return (the copy list, newspaper issue dates).
 - [ ] **Done when:** adding a copy with date `2026-02-31` shows a clear message, and a copy added on `2026-10-14` shows `2026-10-14` in the table.
 
+- [ ] **Checkpoint #3 feedback — drop the barcode field.** The TA said not to include anything with barcodes, since we have no physical equipment to scan them. Circulation has already been switched off barcodes (checkout/return/renew and the open-loans and overdue pages now use the **Copy ID**, the `Copy_id` primary key). The catalog admin is the last place that still uses one: the **Barcode** input and column in `public/catalog-admin.html`, and the barcode read/validate/insert in `routes/catalog.js` (the `LIB-` format check). Remove those so staff add a copy without a barcode. The `Copy.Barcode` column in `schema.sql` can stay (nothing breaks by leaving an unused column) or be dropped — your call, but if you drop it, update `Sample_data.sql` too.
+
 Good to know: adding a copy now checks the barcode format, `LIB-` followed by 4 to 8 digits (saved in upper case). The shared menu script now sends a logged-out visitor to the login page, so you no longer need the 403 redirect we talked about.
 
 ---

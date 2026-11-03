@@ -47,7 +47,7 @@
                             <th>Member</th>
                             <th>Email</th>
                             <th>Title</th>
-                            <th>Barcode</th>
+                            <th>Copy ID</th>
                             <th>Due Date</th>
                             <!-- class="num" right-aligns the number columns,
                                  both the headings and the cells below them -->
@@ -96,17 +96,17 @@
                 // a number lets us add the amounts and format them.
                 const fine = parseFloat(row.fine_so_far);
 
-                // Build the row as text. Names, emails, titles and barcodes were typed
-                // by people, so they go through escapeHtml. due_date arrives as a full
-                // timestamp, and slice(0, 10) keeps only the date part (YYYY-MM-DD).
-                // overdue_days is a number from the database, so it is shown as it is.
-                // The fine is shown with a $ and two decimals (3.5 becomes 3.50).
+                // Build the row as text. Names, emails and titles were typed by people,
+                // so they go through escapeHtml. copy_id, overdue_days and the fine are
+                // numbers from the database, so they are shown as they are. due_date
+                // arrives as a full timestamp, and slice(0, 10) keeps only the date part
+                // (YYYY-MM-DD). The fine is shown with a $ and two decimals (3.5 -> 3.50).
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${escapeHtml(row.member_name)}</td>
                     <td>${escapeHtml(row.member_email)}</td>
                     <td>${escapeHtml(row.title)}</td>
-                    <td>${escapeHtml(row.barcode)}</td>
+                    <td>${row.copy_id}</td>
                     <td>${escapeHtml(row.due_date.slice(0, 10))}</td>
                     <td class="num">${row.overdue_days}</td>
                     <td class="num">$${fine.toFixed(2)}</td>

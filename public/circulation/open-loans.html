@@ -55,7 +55,7 @@
                             <th id="memberHeader" hidden>Member</th>
                             <th>Title</th>
                             <th>Type</th>
-                            <th>Barcode</th>
+                            <th>Copy ID</th>
                             <th>Loan</th>
                             <th>Checked out</th>
                             <th>Due</th>
@@ -138,8 +138,8 @@
                     ? `Overdue ${loan.overdue_days} day(s)`
                     : 'On time';
 
-                // Text that came from people (titles, barcodes, ...) goes through escapeHtml.
-                // renewal_count and status are made by our own code, so they are safe as is.
+                // Text that came from people (titles, ...) goes through escapeHtml.
+                // copy_id, renewal_count and status are made by our own code, so they are safe as is.
                 const tr = document.createElement('tr');
                 // The Member cell exists only in the "everyone" view, to match the heading.
                 const memberCell = data.all
@@ -149,7 +149,7 @@
                     ${memberCell}
                     <td>${escapeHtml(loan.title)}</td>
                     <td>${escapeHtml(loan.item_type)}</td>
-                    <td>${escapeHtml(loan.barcode)}</td>
+                    <td>${loan.copy_id}</td>
                     <td>${escapeHtml(loan.loan_type)}</td>
                     <td>${escapeHtml(loan.checkout_date)}</td>
                     <td>${escapeHtml(loan.due_date)}</td>
