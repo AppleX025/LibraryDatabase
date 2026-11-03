@@ -420,3 +420,26 @@ td {
     justify-content: flex-start;
   }
 }
+
+/* ---------- "Are you sure?" question shown inside the page (inline-confirm.js) ---------- */
+.confirm-box {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  background: #fff6dd;
+  border: 1.5px solid #e0b33c;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Smaller buttons inside the question box, even inside a table row */
+.confirm-box button,
+td .confirm-box button {
+  padding: 8px 14px;
+  font-size: 14px;
+  min-height: 36px;
+}

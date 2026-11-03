@@ -61,6 +61,8 @@
         </section>
     </main>
 
+    <!-- Asks "are you sure?" inside the page instead of a browser pop-up -->
+    <script src="/inline-confirm.js"></script>
     <script>
         // The table body, the summary line and the message box (ids are in the HTML above)
         const rows    = document.getElementById('rows');
@@ -174,7 +176,7 @@
                     const waiveButton = document.createElement('button');
                     waiveButton.textContent = 'Waive';
                     waiveButton.className = 'quiet';
-                    waiveButton.onclick = () => act(fine.Fine_id, 'waive');
+                    waiveButton.onclick = () => act(fine.Fine_id, 'waive', waiveButton);
                     actions.appendChild(waiveButton);
                 }
 
@@ -182,11 +184,13 @@
             }
         }
 
-        // act(id, what): sends POST /api/fines/<id>/pay or /waive,
+        // act(id, what, button): sends POST /api/fines/<id>/pay or /waive,
         // shows the server's message, then reloads the table.
-        async function act(id, what) {
-            // Waiving cancels money that is owed, so ask first. Cancel = do nothing.
-            if (what === 'waive' && !confirm('Are you sure you want to waive this fine?')) return;
+        // button is the one that was clicked; the waive question appears in its place.
+        async function act(id, what, button) {
+            // Waiving cancels money that is owed, so ask first (inside the page, with
+            // Yes and Cancel buttons). Cancel = do nothing.
+            if (what === 'waive' && !(await askInline(button, 'Waive this fine?', 'Yes, waive'))) return;
 
             // Switch every button in the table off while the request runs, so a second
             // click cannot send the same request twice. (The server would refuse the

@@ -50,6 +50,8 @@
     </section>
   </main>
 
+  <!-- Asks "are you sure?" inside the page instead of a browser pop-up -->
+  <script src="/inline-confirm.js"></script>
   <script>
     // Loads the logged-in member's holds and fills the table
     async function load() {
@@ -92,9 +94,10 @@
           b.textContent = 'Cancel';
                 b.onclick = async () => {
         // Ask first, so a hold is never cancelled by an accidental click.
-        // confirm() shows a pop-up with OK and Cancel. It returns false if the member
-        // chooses Cancel, and then we stop here without touching the hold.
-        if (!confirm('Are you sure you want to cancel your hold on "' + h.Title + '"?')) {
+        // askInline() (inline-confirm.js) shows the question right where the button was,
+        // with Yes and Cancel buttons. It answers false if the member chooses Cancel,
+        // and then we stop here without touching the hold.
+        if (!(await askInline(b, 'Cancel your hold on "' + h.Title + '"?', 'Yes, cancel hold'))) {
           return;
         }
         const r = await fetch('/api/holds/' + h.Hold_id + '/cancel', { method: 'POST' });

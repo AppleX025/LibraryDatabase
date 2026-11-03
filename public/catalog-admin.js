@@ -78,11 +78,12 @@ function renderCopies(copies) {
   if (!copies.length) {const tr=el('tr');const td=el('td','No copies yet.');td.colSpan=5;tr.append(td);body.append(tr);}
   copies.forEach(c=>{
     const tr=el('tr');[c.Barcode,c.Condition,c.Shelf_location||'—',c.Status].forEach(v=>tr.append(el('td',v)));
-    const td=el('td');if(c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
+    const td=el('td');if(c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
   });
 }
-async function withdraw(id) {
-  if (!confirm('Withdraw this copy? The record and loan history will be preserved.')) return;
+// withdraw(id, button): asks inside the page first (askInline, inline-confirm.js), then withdraws the copy.
+async function withdraw(id, button) {
+  if (!(await askInline(button, 'Withdraw this copy? The record and loan history will be kept.', 'Yes, withdraw'))) return;
   try { const r=await api(`/copies/${id}/withdraw`,{method:'PATCH'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
 }
 $('itemType').addEventListener('change',()=>renderExtras());
