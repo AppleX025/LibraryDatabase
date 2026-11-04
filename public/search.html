@@ -80,17 +80,61 @@
           tr.appendChild(td);
         }
 
-        // Place hold button. Everyone sees it; if the visitor is not logged in,
-        // clicking it sends them to the login page (see placeHold below).
+        // Place hold button. Clicking it opens the "are you sure?" strip in this row.
         const actionTd = document.createElement('td');
         const holdBtn = document.createElement('button');
         holdBtn.textContent = 'Place hold';
-        holdBtn.addEventListener('click', () => placeHold(item.Item_id));
+        holdBtn.addEventListener('click', () => askToHold(actionTd, holdBtn, item));
         actionTd.appendChild(holdBtn);
         tr.appendChild(actionTd);
 
         tbody.appendChild(tr);
       }
+    }
+
+    // Shows the "are you sure?" strip in place of the Place hold button
+    async function askToHold(cell, holdBtn, item) {
+      // Visitors who are not logged in go to the login page instead
+      const meResponse = await fetch('/me');
+      const me = await meResponse.json();
+      if (!me.loggedIn) { location.href = '/login.html'; return; }
+
+      // Close any other strip that is already open, so only one shows at a time
+      document.querySelectorAll('.confirm-strip').forEach(s => {
+        s.previousElementSibling.classList.remove('is-hidden');
+        s.remove();
+      });
+
+      // Hide the original button and build the strip
+      holdBtn.classList.add('is-hidden');
+      const strip = document.createElement('span');
+      strip.className = 'confirm-strip';
+      strip.setAttribute('role', 'group');
+      strip.setAttribute('aria-label', 'Confirm hold');
+
+      const question = document.createElement('span');
+      question.textContent = 'Place a hold on "' + item.Title + '"?';
+
+      const yesBtn = document.createElement('button');
+      yesBtn.textContent = 'Yes, place hold';
+      yesBtn.addEventListener('click', () => {
+        strip.remove();
+        holdBtn.classList.remove('is-hidden');
+        placeHold(item.Item_id);
+      });
+
+      const noBtn = document.createElement('button');
+      noBtn.textContent = 'Cancel';
+      noBtn.className = 'secondary';
+      noBtn.addEventListener('click', () => {
+        strip.remove();
+        holdBtn.classList.remove('is-hidden');
+      });
+
+      strip.appendChild(question);
+      strip.appendChild(yesBtn);
+      strip.appendChild(noBtn);
+      cell.appendChild(strip);
     }
 
     // Asks the server to place a hold on one item
@@ -104,8 +148,6 @@
       // Not logged in -> go to the login page
       if (res.status === 401) { location.href = '/login.html'; return; }
       const data = await res.json();
-      // Show the result in a pop-up so the member clearly sees "Hold placed" (or the error)
-      alert(data.message || data.error);
       // Refresh the results first so the available copy count updates.
       // "await" makes us wait until the search has finished, because search() clears the message.
       await search();
