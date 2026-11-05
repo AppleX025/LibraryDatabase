@@ -493,13 +493,16 @@ DROP TABLE IF EXISTS `notification`;
 CREATE TABLE `notification` (
   `Notification_id` int NOT NULL AUTO_INCREMENT,
   `Member_id` int NOT NULL,
-  `Notification_type` enum('hold_ready','due_soon','overdue','fine_assessed') NOT NULL,
+  `Notification_type` enum('hold_ready','due_soon','overdue','fine_assessed','fine_paid','fine_waived') NOT NULL,
   `Channel` enum('in_app','email','postal') NOT NULL DEFAULT 'in_app',
   `Message` varchar(255) NOT NULL,
   `Date_sent` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `Is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `Fine_id` int DEFAULT NULL,
   PRIMARY KEY (`Notification_id`),
   KEY `fk_notification_member` (`Member_id`),
+  KEY `fk_notification_fine` (`Fine_id`),
+  CONSTRAINT `fk_notification_fine` FOREIGN KEY (`Fine_id`) REFERENCES `fine` (`Fine_id`),
   CONSTRAINT `fk_notification_member` FOREIGN KEY (`Member_id`) REFERENCES `member` (`Member_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

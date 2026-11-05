@@ -447,14 +447,18 @@ CREATE TABLE Fine (
 CREATE TABLE Notification (
     Notification_id   INT AUTO_INCREMENT NOT NULL,
     Member_id         INT NOT NULL,
-    Notification_type ENUM('hold_ready','due_soon','overdue','fine_assessed') NOT NULL,
+    Notification_type ENUM('hold_ready','due_soon','overdue','fine_assessed','fine_paid','fine_waived') NOT NULL,
     Channel           ENUM('in_app','email','postal') NOT NULL DEFAULT 'in_app',
     Message           VARCHAR(255) NOT NULL,
     Date_sent         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     Is_read           BOOLEAN NOT NULL DEFAULT FALSE,
+    Fine_id           INT NULL,                        -- the fine this notice is about (fine_assessed / fine_paid / fine_waived); empty for other notices
 
     PRIMARY KEY (Notification_id),
     CONSTRAINT fk_notification_member FOREIGN KEY (Member_id)
         REFERENCES Member(Member_id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT fk_notification_fine FOREIGN KEY (Fine_id)
+        REFERENCES Fine(Fine_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT          -- keeps the Fines and Notifications tables in sync: a notice always points at a real fine
 );

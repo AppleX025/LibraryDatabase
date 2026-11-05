@@ -2,7 +2,8 @@
 -- Trigger: trg_loan_overdue_fine
 -- Purpose: when a loan is marked as returned AFTER its due date, MySQL
 --          automatically (1) adds an 'overdue' fine and (2) sends the
---          member a 'fine_assessed' notification.
+--          member a 'fine_assessed' notification linked to that fine
+--          (Notification.Fine_id).
 -- Rule:    $0.35 per day late, capped at $10.00 per item. If an overdue fine already exists for the
 --          loan (created while the item was still out), it is updated rather than duplicated.
 -- Safe to run more than once (it drops the old version first).
@@ -22,6 +23,7 @@ BEGIN
     -- Variables (DECLARE must come first, right after BEGIN)
     DECLARE days_late   INT;            -- how many days past the due date
     DECLARE fine_amount DECIMAL(6, 2);  -- matches Fine.Amount NUMERIC(6,2)
+    DECLARE the_fine_id INT;            -- the fine this loan now has (new or raised), so the notice can point at it
 
     -- Only act on the moment the item comes back:
     --   OLD.Return_date IS NULL      -> it was still open before this update
@@ -45,10 +47,18 @@ BEGIN
         VALUES (NEW.Loan_id, 'overdue', fine_amount)
         ON DUPLICATE KEY UPDATE Amount = GREATEST(Amount, fine_amount);
 
+        -- Find that fine's id (a loan has at most one 'overdue' fine, so this is exactly one row).
+        SELECT Fine_id INTO the_fine_id
+          FROM Fine
+         WHERE Loan_id = NEW.Loan_id AND Fine_type = 'overdue';
+
         -- Tell the member. Channel, Date_sent and Is_read fill in by default.
-        INSERT INTO Notification (Member_id, Notification_type, Message)
+        -- Fine_id links the notice to the fine, so when the fine is paid or waived
+        -- (trg_fine_paid in trigger_fine_paid.sql) the notice is closed too.
+        INSERT INTO Notification (Member_id, Notification_type, Fine_id, Message)
         VALUES (NEW.Member_id,
                 'fine_assessed',
+                the_fine_id,
                 CONCAT('Overdue fine of $', fine_amount, ' for returning an item ',
                        days_late, ' day(s) late.'));
     END IF;

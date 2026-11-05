@@ -5,7 +5,7 @@
 -- have more to show. It adds ONLY catalog rows and copies: no members, loans, holds
 -- or fines, so the demo steps and the triggers behave exactly as before.
 --
--- Run order:  schema.sql -> seed_accounts.sql -> trigger_overdue_fine.sql -> Sample_data.sql
+-- Run order:  schema.sql -> seed_accounts.sql -> trigger_overdue_fine.sql -> trigger_fine_paid.sql -> Sample_data.sql
 --             -> circulation.sql -> trigger_hold_ready.sql -> trigger_hold_completed.sql
 --             -> reports.sql -> THIS FILE (it can also go right after Sample_data.sql).
 -- Run it ONCE per fresh load. To load everything again, start from library_reset.sql
