@@ -72,7 +72,7 @@ async function loadMembers({ keepMessage = false } = {}) {
     toggle.className = 'secondary';
     toggle.addEventListener('click', () => setActive(m, !m.Is_active));
 
-    // Delete only works for an account with no loan or hold history (the server checks and says why if not).
+    // Delete hides the account (the database keeps it and its history). The server refuses while the member has an item out or owes fines.
     const remove = document.createElement('button');
     remove.textContent = 'Delete';
     remove.className = 'secondary';
@@ -106,9 +106,9 @@ function openEdit(m) {
   editPanel.scrollIntoView();
 }
 
-// Deletes one account for good after an in-page question (inline-confirm.js), then refreshes the list.
+// Deletes (hides) one account after an in-page question (inline-confirm.js), then refreshes the list.
 async function deleteMember(m, button) {
-  if (!(await askInline(button, 'Delete ' + m.Username + ' for good?', 'Yes, delete'))) return;
+  if (!(await askInline(button, 'Delete ' + m.Username + '? The account disappears from the app and cannot log in.', 'Yes, delete'))) return;
   const { res, data } = await api('/' + m.Member_id, 'DELETE');
   say(data.message, res.ok);
   if (res.ok) loadMembers({ keepMessage: true });

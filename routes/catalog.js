@@ -93,26 +93,34 @@ router.get('/items', async (req, res) => {
       SUM(CASE WHEN c.Status = 'available' THEN 1 ELSE 0 END) AS Available_copies,
       SUM(CASE WHEN c.Status = 'withdrawn' THEN 1 ELSE 0 END) AS Withdrawn_copies
       FROM CatalogItem ci LEFT JOIN Publisher p ON p.Publisher_id = ci.Publisher_id
-      LEFT JOIN Copy c ON c.Item_id = ci.Item_id
+      LEFT JOIN Copy c ON c.Item_id = ci.Item_id AND c.Is_deleted = FALSE   -- deleted copies are not counted
+      WHERE ci.Is_deleted = FALSE                                          -- deleted items are hidden
       GROUP BY ci.Item_id, ci.Item_type, ci.Title, ci.Publisher_id, p.Name, ci.Publication_year, ci.Replacement_cost
       ORDER BY ci.Item_id DESC`);
     res.json(rows);
   } catch (err) { handleError(res, err); }
 });
 router.get('/publishers', async (req, res) => {
-  try { const [rows] = await db.query('SELECT Publisher_id, Name FROM Publisher ORDER BY Name'); res.json(rows); }
+  try { const [rows] = await db.query('SELECT Publisher_id, Name FROM Publisher WHERE Is_deleted = FALSE ORDER BY Name'); res.json(rows); }
   catch (err) { handleError(res, err); }
 });
 router.post('/publishers', async (req, res) => {
   try {
     const name = optionalText(req.body.Name);
     if (!name || name.length > 100) throw bad('Publisher name is required (maximum 100 characters).');
+    // A publisher with this name may have been "deleted" earlier. The name must stay unique and the
+    // old row is kept, so bring that one back instead of adding a second one.
+    const [[old]] = await db.execute('SELECT Publisher_id FROM Publisher WHERE Name = ? AND Is_deleted = TRUE', [name]);
+    if (old) {
+      await db.execute('UPDATE Publisher SET Is_deleted = FALSE, Date_deleted = NULL WHERE Publisher_id = ?', [old.Publisher_id]);
+      return res.status(201).json({ Publisher_id: old.Publisher_id, Name: name });
+    }
     const [r] = await db.execute('INSERT INTO Publisher (Name) VALUES (?)', [name]);
     res.status(201).json({ Publisher_id: r.insertId, Name: name });
   } catch (err) { handleError(res, err); }
 });
 router.get('/authors', async (req, res) => {
-  try { const [rows] = await db.query('SELECT Author_id, First_name, Last_name FROM Author ORDER BY Last_name, First_name'); res.json(rows); }
+  try { const [rows] = await db.query('SELECT Author_id, First_name, Last_name FROM Author WHERE Is_deleted = FALSE ORDER BY Last_name, First_name'); res.json(rows); }
   catch (err) { handleError(res, err); }
 });
 router.post('/authors', async (req, res) => {
@@ -126,7 +134,7 @@ router.post('/authors', async (req, res) => {
 router.get('/items/:id', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
-    const [[item]] = await db.execute('SELECT * FROM CatalogItem WHERE Item_id = ?', [id]);
+    const [[item]] = await db.execute('SELECT * FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE', [id]);
     if (!item) return res.status(404).json({ message: 'Item not found.' });
     const spec = TYPES[item.Item_type];
     // Format newspaper issue dates as text to avoid timezone shifts in JSON.
@@ -135,7 +143,7 @@ router.get('/items/:id', async (req, res) => {
       : '*';
     const [[extra]] = await db.query(`SELECT ${detailColumns} FROM \`${spec.table}\` WHERE Item_id = ?`, [id]);
     // Return the date as YYYY-MM-DD text, not a JavaScript Date in UTC.
-    const [copies] = await db.execute("SELECT Copy_id, `Condition`, Shelf_location, Status, DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired FROM Copy WHERE Item_id = ? ORDER BY Copy_id", [id]);
+    const [copies] = await db.execute("SELECT Copy_id, `Condition`, Shelf_location, Status, DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired FROM Copy WHERE Item_id = ? AND Is_deleted = FALSE ORDER BY Copy_id", [id]);
     let authors = [];
     if (item.Item_type === 'book' || item.Item_type === 'researchpaper') {
       const junction = item.Item_type === 'book' ? 'BookAuthor' : 'PaperAuthor';
@@ -169,7 +177,7 @@ router.put('/items/:id', async (req, res) => {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
     const x = validateItem(req.body);
     conn = await db.getConnection(); await conn.beginTransaction();
-    const [[old]] = await conn.execute('SELECT Item_type FROM CatalogItem WHERE Item_id = ? FOR UPDATE', [id]);
+    const [[old]] = await conn.execute('SELECT Item_type FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!old) { await conn.rollback(); return res.status(404).json({ message: 'Item not found.' }); }
     if (old.Item_type !== x.type) throw bad('Item category cannot be changed after creation. Create a new item instead.');
     await conn.execute('UPDATE CatalogItem SET Title=?, Publisher_id=?, Publication_year=?, Replacement_cost=? WHERE Item_id=?', [x.title,x.publisher,x.year,x.replacement,id]);
@@ -183,6 +191,9 @@ router.put('/items/:id', async (req, res) => {
 router.post('/items/:id/copies', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
+    // Copies can only be added to an item that has not been deleted.
+    const [[liveItem]] = await db.execute('SELECT Item_id FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE', [id]);
+    if (!liveItem) return res.status(404).json({ message: 'Item not found.' });
     // A copy has no barcode: the library has no scanners, so staff identify a copy by its
     // Copy ID, the number the database gives it when it is added (shown in the table).
     const condition = req.body.Condition;
@@ -200,7 +211,7 @@ router.patch('/copies/:id/withdraw', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid copy ID.');
     conn = await db.getConnection(); await conn.beginTransaction();
-    const [[copy]] = await conn.execute('SELECT Status FROM Copy WHERE Copy_id = ? FOR UPDATE', [id]);
+    const [[copy]] = await conn.execute('SELECT Status FROM Copy WHERE Copy_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!copy) { await conn.rollback(); return res.status(404).json({ message: 'Copy not found.' }); }
     if (copy.Status !== 'available') throw bad('Only available copies can be withdrawn. Return or resolve outstanding loans first.');
     const [[openLoan]] = await conn.execute('SELECT Loan_id FROM Loan WHERE Copy_id = ? AND Return_date IS NULL LIMIT 1', [id]);
@@ -216,80 +227,84 @@ router.patch('/copies/:id/withdraw', async (req, res) => {
 // ---------------------------------------------------------------------
 // Deleting (administrators only: every non-GET request is admin-only, see router.use above)
 // ---------------------------------------------------------------------
-// The database uses "ON DELETE RESTRICT" everywhere: a row that other rows still depend on can
-// not be removed, so loan, fine and hold history can never be lost by accident. These routes
-// check that first, and answer with a plain message saying what is in the way and what to do
-// instead (Withdraw a copy, or leave the record). Each one deletes at most the one record asked for.
+// "Delete" here is a SOFT delete: nothing is removed from the database. The record gets
+// Is_deleted = TRUE and the time in Date_deleted, and from then on every list, search and action
+// in the app skips it, so the end user never sees it again. Loans, fines and holds that refer to it
+// keep working as history. A person with database access can still find the row (and undelete it).
+// Each route first checks that deleting would not leave the library in a broken state, and answers
+// with a plain message saying what to do first.
 
 // DELETE /api/catalog/copies/:id
-// Removes one copy that was never lent and is not set aside for a hold (for example one added by
-// mistake). A copy with loan history cannot be deleted: withdraw it instead, the history is kept.
+// Hides one copy. Not allowed while it is on loan or set aside for a member's hold.
 router.delete('/copies/:id', async (req, res) => {
   let conn;
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid copy ID.');
     conn = await db.getConnection(); await conn.beginTransaction();
     // FOR UPDATE locks the copy's row so nobody can lend it while we decide.
-    const [[copy]] = await conn.execute('SELECT Copy_id FROM Copy WHERE Copy_id = ? FOR UPDATE', [id]);
+    const [[copy]] = await conn.execute('SELECT Copy_id FROM Copy WHERE Copy_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!copy) { await conn.rollback(); return res.status(404).json({ message: 'Copy not found.' }); }
-    const [[loan]] = await conn.execute('SELECT Loan_id FROM Loan WHERE Copy_id = ? LIMIT 1', [id]);
-    if (loan) throw bad('This copy has loan history, so it cannot be deleted. Use Withdraw instead: the record and its history are kept.');
-    const [[hold]] = await conn.execute('SELECT Hold_id FROM Hold WHERE Reserved_copy_id = ? LIMIT 1', [id]);
-    if (hold) throw bad('A hold refers to this copy, so it cannot be deleted. Use Withdraw instead.');
-    await conn.execute('DELETE FROM Copy WHERE Copy_id = ?', [id]);
-    await conn.commit(); res.json({ message: 'Copy deleted.' });
+    const [[loan]] = await conn.execute('SELECT Loan_id FROM Loan WHERE Copy_id = ? AND Return_date IS NULL LIMIT 1', [id]);
+    if (loan) throw bad('This copy is on loan. Return it first, then delete it.');
+    const [[hold]] = await conn.execute("SELECT Hold_id FROM Hold WHERE Reserved_copy_id = ? AND Status = 'Ready' LIMIT 1", [id]);
+    if (hold) throw bad('This copy is set aside for a member\'s hold. Cancel or finish the hold first.');
+    await conn.execute('UPDATE Copy SET Is_deleted = TRUE, Date_deleted = NOW() WHERE Copy_id = ?', [id]);
+    await conn.commit(); res.json({ message: 'Copy deleted. It is hidden from the app; its history is kept.' });
   } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
   finally { if (conn) conn.release(); }
 });
 
 // DELETE /api/catalog/items/:id
-// Removes a catalog item that has no copies and no holds (for example one entered twice).
-// The author links and the category row (Book, DVD, ...) go with it, in one transaction.
+// Hides a catalog item together with all of its copies, and cancels members' open holds on it.
+// Not allowed while any of its copies is on loan (return them first).
 router.delete('/items/:id', async (req, res) => {
   let conn;
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
     conn = await db.getConnection(); await conn.beginTransaction();
-    const [[item]] = await conn.execute('SELECT Item_type FROM CatalogItem WHERE Item_id = ? FOR UPDATE', [id]);
+    const [[item]] = await conn.execute('SELECT Item_id FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!item) { await conn.rollback(); return res.status(404).json({ message: 'Item not found.' }); }
-    const [[copy]] = await conn.execute('SELECT COUNT(*) AS n FROM Copy WHERE Item_id = ?', [id]);
-    if (copy.n > 0) throw bad(`This item still has ${copy.n} cop${copy.n === 1 ? 'y' : 'ies'}. Delete the copies first (a copy that was lent can only be withdrawn, not deleted).`);
-    const [[hold]] = await conn.execute('SELECT COUNT(*) AS n FROM Hold WHERE Item_id = ?', [id]);
-    if (hold.n > 0) throw bad('Members have holds on this item, so it cannot be deleted.');
-    // Authors are linked through a separate table for books and research papers only.
-    if (item.Item_type === 'book') await conn.execute('DELETE FROM BookAuthor WHERE Item_id = ?', [id]);
-    if (item.Item_type === 'researchpaper') await conn.execute('DELETE FROM PaperAuthor WHERE Item_id = ?', [id]);
-    // The category row (Book, DVD, ...) must go before the CatalogItem row it points to.
-    // TYPES[...].table is a fixed name from the list at the top of this file, never typed text.
-    await conn.query(`DELETE FROM \`${TYPES[item.Item_type].table}\` WHERE Item_id = ?`, [id]);
-    await conn.execute('DELETE FROM CatalogItem WHERE Item_id = ?', [id]);
-    await conn.commit(); res.json({ message: 'Item deleted.' });
+    // Any copy of this item with an open loan (no return date) blocks the delete.
+    const [[out]] = await conn.execute(
+      `SELECT COUNT(*) AS n FROM Loan l JOIN Copy c ON c.Copy_id = l.Copy_id
+        WHERE c.Item_id = ? AND l.Return_date IS NULL`, [id]);
+    if (out.n > 0) throw bad(`${out.n} cop${out.n === 1 ? 'y is' : 'ies are'} on loan. Return ${out.n === 1 ? 'it' : 'them'} first, then delete the item.`);
+    // Members waiting for an item that no longer exists would wait forever: cancel their open holds.
+    await conn.execute("UPDATE Hold SET Status = 'Cancelled' WHERE Item_id = ? AND Status IN ('Active','Ready')", [id]);
+    // Hide every copy, then the item itself.
+    await conn.execute('UPDATE Copy SET Is_deleted = TRUE, Date_deleted = NOW() WHERE Item_id = ? AND Is_deleted = FALSE', [id]);
+    await conn.execute('UPDATE CatalogItem SET Is_deleted = TRUE, Date_deleted = NOW() WHERE Item_id = ?', [id]);
+    await conn.commit(); res.json({ message: 'Item deleted. It and its copies are hidden from the app; the history is kept.' });
   } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
   finally { if (conn) conn.release(); }
 });
 
-// DELETE /api/catalog/publishers/:id  -  only a publisher that no item uses.
+// DELETE /api/catalog/publishers/:id  -  hides a publisher that no visible item uses.
 router.delete('/publishers/:id', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid publisher ID.');
-    const [[used]] = await db.execute('SELECT COUNT(*) AS n FROM CatalogItem WHERE Publisher_id = ?', [id]);
-    if (used.n > 0) throw bad(`${used.n} catalog item(s) use this publisher, so it cannot be deleted.`);
-    const [r] = await db.execute('DELETE FROM Publisher WHERE Publisher_id = ?', [id]);
+    const [[used]] = await db.execute('SELECT COUNT(*) AS n FROM CatalogItem WHERE Publisher_id = ? AND Is_deleted = FALSE', [id]);
+    if (used.n > 0) throw bad(`${used.n} catalog item(s) use this publisher. Change or delete those items first.`);
+    const [r] = await db.execute('UPDATE Publisher SET Is_deleted = TRUE, Date_deleted = NOW() WHERE Publisher_id = ? AND Is_deleted = FALSE', [id]);
     if (r.affectedRows === 0) return res.status(404).json({ message: 'Publisher not found.' });
-    res.json({ message: 'Publisher deleted.' });
+    res.json({ message: 'Publisher deleted. It is hidden from the app.' });
   } catch (err) { handleError(res, err); }
 });
 
-// DELETE /api/catalog/authors/:id  -  only an author that no book or research paper uses.
+// DELETE /api/catalog/authors/:id  -  hides an author that no visible book or research paper uses.
 router.delete('/authors/:id', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid author ID.');
-    const [[books]] = await db.execute('SELECT COUNT(*) AS n FROM BookAuthor WHERE Author_id = ?', [id]);
-    const [[papers]] = await db.execute('SELECT COUNT(*) AS n FROM PaperAuthor WHERE Author_id = ?', [id]);
-    if (books.n + papers.n > 0) throw bad(`${books.n + papers.n} book(s) or paper(s) use this author, so the author cannot be deleted.`);
-    const [r] = await db.execute('DELETE FROM Author WHERE Author_id = ?', [id]);
+    // Count the books and papers (that are not deleted) written by this author.
+    const [[used]] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM BookAuthor ba JOIN CatalogItem ci ON ci.Item_id = ba.Item_id
+                WHERE ba.Author_id = ? AND ci.Is_deleted = FALSE)
+            + (SELECT COUNT(*) FROM PaperAuthor pa JOIN CatalogItem ci ON ci.Item_id = pa.Item_id
+                WHERE pa.Author_id = ? AND ci.Is_deleted = FALSE) AS n`, [id, id]);
+    if (used.n > 0) throw bad(`${used.n} book(s) or paper(s) use this author. Change or delete those items first.`);
+    const [r] = await db.execute('UPDATE Author SET Is_deleted = TRUE, Date_deleted = NOW() WHERE Author_id = ? AND Is_deleted = FALSE', [id]);
     if (r.affectedRows === 0) return res.status(404).json({ message: 'Author not found.' });
-    res.json({ message: 'Author deleted.' });
+    res.json({ message: 'Author deleted. It is hidden from the app.' });
   } catch (err) { handleError(res, err); }
 });
 

@@ -56,7 +56,7 @@ router.post('/login', async (req, res) => {
     if (!rows.length) {
       isStaff = false;
       [rows] = await db.execute(
-        'SELECT Member_id AS id, Password_hash, Is_active, First_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+        'SELECT Member_id AS id, Password_hash, Is_active, First_name FROM Member WHERE (Username = ? OR Email = ?) AND Is_deleted = FALSE LIMIT 1',
         [username, username]);
     }
 

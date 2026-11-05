@@ -15,12 +15,14 @@ router.get('/api/search', async (req, res) => {
            FROM Copy c
           WHERE c.Item_id = ci.Item_id
             AND c.Status = 'available'
+            AND c.Is_deleted = FALSE
             AND c.Copy_id NOT IN (
                   SELECT Reserved_copy_id FROM Hold
                    WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
         ) AS available_copies
       FROM CatalogItem ci
-      WHERE (
+      WHERE ci.Is_deleted = FALSE            -- deleted items are hidden from search
+        AND (
               ci.Title LIKE ?
            OR ci.Item_id IN (
                 SELECT ba.Item_id

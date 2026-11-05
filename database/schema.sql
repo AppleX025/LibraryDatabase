@@ -13,9 +13,14 @@ USE library;
 CREATE TABLE Publisher (
     Publisher_id INT AUTO_INCREMENT NOT NULL,
     Name VARCHAR(100) NOT NULL,
+    Is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,  -- "deleted" in the app: hidden everywhere, but the row (and its history) stays in the database
+    Date_deleted    DATETIME NULL,                   -- when it was marked deleted; empty otherwise
 
     PRIMARY KEY (Publisher_id),
-    CONSTRAINT uq_publisher_name UNIQUE (Name)
+    CONSTRAINT uq_publisher_name UNIQUE (Name),
+    CONSTRAINT ck_publisher_deleted_matches_date
+        CHECK ((Is_deleted = TRUE AND Date_deleted IS NOT NULL) OR (Is_deleted = FALSE AND Date_deleted IS NULL))
+                                                     -- "deleted" and "date deleted" always agree
 );
 
 -- =====================================================================
@@ -26,8 +31,13 @@ CREATE TABLE Author(
     Author_id INT AUTO_INCREMENT NOT NULL,
     First_name VARCHAR(50) NOT NULL,
     Last_name VARCHAR(50) NOT NULL,
+    Is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,  -- "deleted" in the app: hidden everywhere, but the row (and its history) stays in the database
+    Date_deleted    DATETIME NULL,                   -- when it was marked deleted; empty otherwise
 
-    PRIMARY KEY (Author_id) 
+    PRIMARY KEY (Author_id),
+    CONSTRAINT ck_author_deleted_matches_date
+        CHECK ((Is_deleted = TRUE AND Date_deleted IS NOT NULL) OR (Is_deleted = FALSE AND Date_deleted IS NULL))
+                                                     -- "deleted" and "date deleted" always agree
 );
 
 -- =====================================================================
@@ -91,6 +101,8 @@ CREATE TABLE Member (
     Password_hash   VARCHAR(255) NOT NULL,
     Date_registered DATE NOT NULL DEFAULT (CURRENT_DATE),   -- today unless told otherwise
     Is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    Is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,  -- "deleted" in the app: hidden everywhere, but the row (and its history) stays in the database
+    Date_deleted    DATETIME NULL,                   -- when it was marked deleted; empty otherwise
 
     PRIMARY KEY (Member_id),
     CONSTRAINT fk_member_membertype FOREIGN KEY (Member_type_id)
@@ -102,6 +114,9 @@ CREATE TABLE Member (
     CONSTRAINT uq_member_username UNIQUE (Username),
     CONSTRAINT uq_member_email UNIQUE (Email),
     CONSTRAINT uq_member_staff UNIQUE (Staff_id),    -- one employee = at most one member record
+    CONSTRAINT ck_member_deleted_matches_date
+        CHECK ((Is_deleted = TRUE AND Date_deleted IS NOT NULL) OR (Is_deleted = FALSE AND Date_deleted IS NULL)),
+                                                     -- "deleted" and "date deleted" always agree
     CONSTRAINT ck_member_username_not_blank CHECK (TRIM(Username) <> ''),
     CONSTRAINT ck_member_first_name_not_blank CHECK (TRIM(First_name) <> ''),
     CONSTRAINT ck_member_last_name_not_blank CHECK (TRIM(Last_name) <> ''),
@@ -127,12 +142,17 @@ CREATE TABLE CatalogItem (
     Publisher_id INT NULL,
     Publication_year SMALLINT NULL,
     Replacement_cost NUMERIC(6,2) NULL,
-    
+    Is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,  -- "deleted" in the app: hidden everywhere, but the row (and its history) stays in the database
+    Date_deleted    DATETIME NULL,                   -- when it was marked deleted; empty otherwise
+
     PRIMARY KEY (Item_id),
     CONSTRAINT fk_catalogitem_publisher FOREIGN KEY (Publisher_id)
         REFERENCES Publisher(Publisher_id)
         ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT uq_catalogitem_id_type UNIQUE (Item_id, Item_type),
+    CONSTRAINT ck_catalogitem_deleted_matches_date
+        CHECK ((Is_deleted = TRUE AND Date_deleted IS NOT NULL) OR (Is_deleted = FALSE AND Date_deleted IS NULL)),
+                                                     -- "deleted" and "date deleted" always agree
     CONSTRAINT ck_catalogitem_title_not_blank CHECK (TRIM(Title) <> ''),
     CONSTRAINT ck_catalogitem_replacement_cost CHECK (Replacement_cost >= 0),
     CONSTRAINT ck_catalogitem_publication_year CHECK (Publication_year IS NULL OR Publication_year BETWEEN 1400 AND 2100)
@@ -324,11 +344,16 @@ CREATE TABLE Copy (
     Shelf_location VARCHAR(30) NULL,
     Status         ENUM('available','on loan','lost','withdrawn') NOT NULL DEFAULT 'available',
     Date_acquired  DATE NOT NULL,
+    Is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,  -- "deleted" in the app: hidden everywhere, but the row (and its history) stays in the database
+    Date_deleted    DATETIME NULL,                   -- when it was marked deleted; empty otherwise
 
     PRIMARY KEY (Copy_id),
     CONSTRAINT fk_copy_catalogitem FOREIGN KEY (Item_id)
         REFERENCES CatalogItem(Item_id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT ck_copy_deleted_matches_date
+        CHECK ((Is_deleted = TRUE AND Date_deleted IS NOT NULL) OR (Is_deleted = FALSE AND Date_deleted IS NULL))
+                                                     -- "deleted" and "date deleted" always agree
 );
 
 

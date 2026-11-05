@@ -47,7 +47,7 @@ function renderCatalog() {
   rows.forEach(r=>{
     const tr=el('tr'); [r.Item_id,r.Title,r.Item_type,r.Publisher_name||'—',r.Total_copies,r.Available_copies,r.Withdrawn_copies].forEach(v=>tr.append(el('td',v)));
     const td=el('td');const b=el('button',canEdit?'Edit':'View copies');b.type='button';b.addEventListener('click',()=>editItem(r.Item_id));td.append(b);
-    // Administrators can also delete an item (only works when it has no copies or holds; the server says why if not).
+    // Administrators can also delete an item: it is hidden from the app, nothing is removed from the database.
     if(canEdit){const d=el('button','Delete');d.type='button';d.className='secondary';d.addEventListener('click',()=>removeItem(r.Item_id,r.Title,d));td.append(' ',d);}
     tr.append(td);body.append(tr);
   });
@@ -92,7 +92,7 @@ function renderCopies(copies) {
     if(canEdit){
       // Withdraw keeps the record and its history (only for an available copy).
       if(c.Status==='available'){const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b,' ');}
-      // Delete removes the copy for good, but only if it was never lent (the server checks).
+      // Delete hides the copy from the app (the server keeps the row and its history).
       const d=el('button','Delete');d.type='button';d.className='secondary';d.addEventListener('click',()=>removeCopy(c.Copy_id,d));td.append(d);
     } else td.textContent='—';
     tr.append(td);body.append(tr);
@@ -104,20 +104,21 @@ function listRow(text, onDelete) {
   const li=el('li',text+' ');const b=el('button','Delete');b.type='button';b.className='secondary';
   b.addEventListener('click',()=>onDelete(b));li.append(b);return li;
 }
-// removeItem(id, title, button): asks inside the page, then deletes the item. The server refuses
-// (and says why) when the item still has copies or holds.
+// removeItem(id, title, button): asks inside the page, then deletes the item. "Delete" only hides it:
+// the server marks the item and its copies as deleted and keeps the rows. It refuses (and says why)
+// while a copy is on loan.
 async function removeItem(id, title, button) {
-  if (!(await askInline(button, `Delete "${title}" for good?`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete "${title}" and its copies? They disappear from the app.`, 'Yes, delete'))) return;
   try { const r=await api(`/items/${id}`,{method:'DELETE'});await loadCatalog();notify(r.message); }catch(e){notify(e.message,true);}
 }
-// removeCopy(id, button): deletes a copy that was never lent (a copy with history can only be withdrawn).
+// removeCopy(id, button): deletes (hides) one copy. The server refuses while it is on loan or set aside for a hold.
 async function removeCopy(id, button) {
-  if (!(await askInline(button, `Delete copy #${id} for good?`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete copy #${id}? It disappears from the app.`, 'Yes, delete'))) return;
   try { const r=await api(`/copies/${id}`,{method:'DELETE'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
 }
-// removePerson(kind, id, name, button): deletes a publisher or an author nobody uses ('publishers' or 'authors').
+// removePerson(kind, id, name, button): deletes (hides) a publisher or an author no visible item uses ('publishers' or 'authors').
 async function removePerson(kind, id, name, button) {
-  if (!(await askInline(button, `Delete "${name}"?`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete "${name}"? It disappears from the app.`, 'Yes, delete'))) return;
   try { const r=await api(`/${kind}/${id}`,{method:'DELETE'});await loadLists();notify(r.message); }catch(e){notify(e.message,true);}
 }
 async function withdraw(id, button) {

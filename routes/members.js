@@ -55,8 +55,9 @@ router.get('/', isStaff, async (req, res) => {
       `SELECT m.Member_id, m.Username, m.First_name, m.Last_name, m.Email, m.Phone,
               m.Street, m.City, m.State, m.Zip_code, m.Is_active, t.Type_name
          FROM Member m JOIN MemberType t ON t.Member_type_id = m.Member_type_id
-        WHERE m.Username LIKE ? OR m.Email LIKE ?
-           OR CONCAT(m.First_name, ' ', m.Last_name) LIKE ?
+        WHERE m.Is_deleted = FALSE                                -- deleted accounts are hidden
+          AND (m.Username LIKE ? OR m.Email LIKE ?
+               OR CONCAT(m.First_name, ' ', m.Last_name) LIKE ?)
         ORDER BY m.Last_name, m.First_name LIMIT 200`,
       [like, like, like]
     );
@@ -101,7 +102,7 @@ router.put('/:id', isAdmin, async (req, res) => {
     const [current] = await db.query(
       `SELECT t.Type_name
          FROM Member m JOIN MemberType t ON t.Member_type_id = m.Member_type_id
-        WHERE m.Member_id = ?`,
+        WHERE m.Member_id = ? AND m.Is_deleted = FALSE`,
       [id]
     );
 
@@ -175,10 +176,12 @@ router.patch('/:id/active', isAdmin, async (req, res) => {
 });
 
 // DELETE /api/members/:id   (administrators only)
-// Removes a member account that has no history: no loans, no holds and no link to a staff account.
-// Someone who has borrowed is never deleted, because loans and fines refer to them and the history
-// must stay: deactivate that account instead (the PATCH route above).
-// Their notifications are only messages to them, so those are removed with the account.
+// A SOFT delete: nothing is removed from the database. The account gets Is_deleted = TRUE (and is
+// switched off, Is_active = FALSE), so the person disappears from the member list, cannot log in
+// and cannot borrow, while their loans, fines and holds stay in the database as history.
+// Not allowed while the member still has an item out or owes money (settle those first), or when the
+// member is linked to a staff account (that account is managed by an administrator, not here).
+// Their open holds are cancelled so nobody keeps waiting for a person who is gone.
 router.delete('/:id', isAdmin, async (req, res) => {
   const id = parseMemberId(req.params.id);
   if (id === null) return res.status(400).json({ message: 'The member id must be a positive whole number.' });
@@ -188,22 +191,29 @@ router.delete('/:id', isAdmin, async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
     // FOR UPDATE locks the member's row while we check, so a checkout cannot sneak in meanwhile.
-    const [[member]] = await conn.query('SELECT Member_id, Staff_id FROM Member WHERE Member_id = ? FOR UPDATE', [id]);
+    const [[member]] = await conn.query('SELECT Member_id, Staff_id FROM Member WHERE Member_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!member) { await conn.rollback(); return res.status(404).json({ message: 'Member not found.' }); }
     if (member.Staff_id !== null) {
       await conn.rollback();
       return res.status(400).json({ message: 'This member is linked to a staff account, so it cannot be deleted here.' });
     }
-    const [[loans]] = await conn.query('SELECT COUNT(*) AS n FROM Loan WHERE Member_id = ?', [id]);
-    const [[holds]] = await conn.query('SELECT COUNT(*) AS n FROM Hold WHERE Member_id = ?', [id]);
-    if (loans.n > 0 || holds.n > 0) {
+    const [[out]] = await conn.query('SELECT COUNT(*) AS n FROM Loan WHERE Member_id = ? AND Return_date IS NULL', [id]);
+    if (out.n > 0) {
       await conn.rollback();
-      return res.status(400).json({ message: 'This member has loan or hold history, so the account cannot be deleted. Deactivate it instead: the history is kept.' });
+      return res.status(400).json({ message: 'This member still has an item on loan. Return it first.' });
     }
-    await conn.query('DELETE FROM Notification WHERE Member_id = ?', [id]);
-    await conn.query('DELETE FROM Member WHERE Member_id = ?', [id]);
+    // Unpaid fines: join Fine to the member's loans.
+    const [[owed]] = await conn.query(
+      `SELECT COUNT(*) AS n FROM Fine f JOIN Loan l ON l.Loan_id = f.Loan_id
+        WHERE l.Member_id = ? AND f.Is_paid = FALSE`, [id]);
+    if (owed.n > 0) {
+      await conn.rollback();
+      return res.status(400).json({ message: 'This member has unpaid fines. Pay or waive them first.' });
+    }
+    await conn.query("UPDATE Hold SET Status = 'Cancelled' WHERE Member_id = ? AND Status IN ('Active','Ready')", [id]);
+    await conn.query('UPDATE Member SET Is_deleted = TRUE, Date_deleted = NOW(), Is_active = FALSE WHERE Member_id = ?', [id]);
     await conn.commit();
-    res.json({ message: 'Member deleted.' });
+    res.json({ message: 'Member deleted. The account is hidden and cannot log in; the history is kept.' });
   } catch (err) {
     if (conn) await conn.rollback();
     console.error(err);

@@ -28,7 +28,10 @@ CREATE TABLE `author` (
   `Author_id` int NOT NULL AUTO_INCREMENT,
   `First_name` varchar(50) NOT NULL,
   `Last_name` varchar(50) NOT NULL,
-  PRIMARY KEY (`Author_id`)
+  `Is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `Date_deleted` datetime DEFAULT NULL,
+  PRIMARY KEY (`Author_id`),
+  CONSTRAINT `ck_author_deleted_matches_date` CHECK ((((`Is_deleted` = true) and (`Date_deleted` is not null)) or ((`Is_deleted` = false) and (`Date_deleted` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -143,13 +146,16 @@ CREATE TABLE `catalogitem` (
   `Publisher_id` int DEFAULT NULL,
   `Publication_year` smallint DEFAULT NULL,
   `Replacement_cost` decimal(6,2) DEFAULT NULL,
+  `Is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `Date_deleted` datetime DEFAULT NULL,
   PRIMARY KEY (`Item_id`),
   UNIQUE KEY `uq_catalogitem_id_type` (`Item_id`,`Item_type`),
   KEY `fk_catalogitem_publisher` (`Publisher_id`),
   CONSTRAINT `fk_catalogitem_publisher` FOREIGN KEY (`Publisher_id`) REFERENCES `publisher` (`Publisher_id`),
   CONSTRAINT `ck_catalogitem_publication_year` CHECK (((`Publication_year` is null) or (`Publication_year` between 1400 and 2100))),
   CONSTRAINT `ck_catalogitem_replacement_cost` CHECK ((`Replacement_cost` >= 0)),
-  CONSTRAINT `ck_catalogitem_title_not_blank` CHECK ((trim(`Title`) <> _utf8mb4''))
+  CONSTRAINT `ck_catalogitem_title_not_blank` CHECK ((trim(`Title`) <> _utf8mb4'')),
+  CONSTRAINT `ck_catalogitem_deleted_matches_date` CHECK ((((`Is_deleted` = true) and (`Date_deleted` is not null)) or ((`Is_deleted` = false) and (`Date_deleted` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -176,9 +182,12 @@ CREATE TABLE `copy` (
   `Shelf_location` varchar(30) DEFAULT NULL,
   `Status` enum('available','on loan','lost','withdrawn') NOT NULL DEFAULT 'available',
   `Date_acquired` date NOT NULL,
+  `Is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `Date_deleted` datetime DEFAULT NULL,
   PRIMARY KEY (`Copy_id`),
   KEY `fk_copy_catalogitem` (`Item_id`),
-  CONSTRAINT `fk_copy_catalogitem` FOREIGN KEY (`Item_id`) REFERENCES `catalogitem` (`Item_id`)
+  CONSTRAINT `fk_copy_catalogitem` FOREIGN KEY (`Item_id`) REFERENCES `catalogitem` (`Item_id`),
+  CONSTRAINT `ck_copy_deleted_matches_date` CHECK ((((`Is_deleted` = true) and (`Date_deleted` is not null)) or ((`Is_deleted` = false) and (`Date_deleted` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -361,6 +370,8 @@ CREATE TABLE `member` (
   `Password_hash` varchar(255) NOT NULL,
   `Date_registered` date NOT NULL DEFAULT (curdate()),
   `Is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `Is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `Date_deleted` datetime DEFAULT NULL,
   PRIMARY KEY (`Member_id`),
   UNIQUE KEY `uq_member_username` (`Username`),
   UNIQUE KEY `uq_member_email` (`Email`),
@@ -377,7 +388,8 @@ CREATE TABLE `member` (
   CONSTRAINT `ck_member_phone_symbols` CHECK (((`Phone` is null) or regexp_like(`Phone`,_utf8mb4'^[0-9() .+-]+$'))),
   CONSTRAINT `ck_member_state_format` CHECK (((`State` is null) or regexp_like(`State`,_utf8mb4'^[A-Z]{2}$',_utf8mb4'c'))),
   CONSTRAINT `ck_member_username_not_blank` CHECK ((trim(`Username`) <> _utf8mb4'')),
-  CONSTRAINT `ck_member_zip_format` CHECK (((`Zip_code` is null) or regexp_like(`Zip_code`,_utf8mb4'^[0-9]{5}(-[0-9]{4})?$')))
+  CONSTRAINT `ck_member_zip_format` CHECK (((`Zip_code` is null) or regexp_like(`Zip_code`,_utf8mb4'^[0-9]{5}(-[0-9]{4})?$'))),
+  CONSTRAINT `ck_member_deleted_matches_date` CHECK ((((`Is_deleted` = true) and (`Date_deleted` is not null)) or ((`Is_deleted` = false) and (`Date_deleted` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -552,8 +564,11 @@ DROP TABLE IF EXISTS `publisher`;
 CREATE TABLE `publisher` (
   `Publisher_id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(100) NOT NULL,
+  `Is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `Date_deleted` datetime DEFAULT NULL,
   PRIMARY KEY (`Publisher_id`),
-  UNIQUE KEY `uq_publisher_name` (`Name`)
+  UNIQUE KEY `uq_publisher_name` (`Name`),
+  CONSTRAINT `ck_publisher_deleted_matches_date` CHECK ((((`Is_deleted` = true) and (`Date_deleted` is not null)) or ((`Is_deleted` = false) and (`Date_deleted` is null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

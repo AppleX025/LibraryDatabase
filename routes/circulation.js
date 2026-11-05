@@ -130,7 +130,8 @@ router.post('/checkout', isStaff, async (req, res) => {
                     mt.Type_name, mt.Max_loans, mt.Max_media_loans
                FROM Member m
                JOIN MemberType mt ON mt.Member_type_id = m.Member_type_id
-              WHERE m.Username = ? OR m.Email = ?
+              WHERE (m.Username = ? OR m.Email = ?)
+                AND m.Is_deleted = FALSE          -- a deleted account is treated as not found
               LIMIT 1
                 FOR UPDATE OF m`,
             [memberText, memberText]);
@@ -163,6 +164,7 @@ router.post('/checkout', isStaff, async (req, res) => {
                FROM Copy c
                JOIN CatalogItem ci ON ci.Item_id = c.Item_id
               WHERE c.Copy_id = ?
+                AND c.Is_deleted = FALSE          -- a deleted copy is treated as not found
                 FOR UPDATE OF c`,
             [copyId]);
         const copy = copies[0];
@@ -695,7 +697,7 @@ router.get('/open-loans', isAuthenticated, async (req, res) => {
             }
 
             const [members] = await db.query(
-                'SELECT Member_id FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+                'SELECT Member_id FROM Member WHERE (Username = ? OR Email = ?) AND Is_deleted = FALSE LIMIT 1',
                 [memberText, memberText]);
             if (members.length === 0) {
                 // 404 = "not found"
@@ -765,7 +767,7 @@ router.get('/holds', isStaff, async (req, res) => {
         let member = null;
         if (memberText) {
             const [members] = await db.query(
-                'SELECT Member_id, First_name, Last_name FROM Member WHERE Username = ? OR Email = ? LIMIT 1',
+                'SELECT Member_id, First_name, Last_name FROM Member WHERE (Username = ? OR Email = ?) AND Is_deleted = FALSE LIMIT 1',
                 [memberText, memberText]);
             if (members.length === 0) {
                 // 404 = "not found"
@@ -783,7 +785,7 @@ router.get('/holds', isStaff, async (req, res) => {
                                  WHERE r.Reserved_copy_id = c.Copy_id AND r.Status = 'Ready') AS is_reserved
                    FROM Copy c
                    JOIN CatalogItem ci ON ci.Item_id = c.Item_id
-                  WHERE c.Copy_id = ?`,
+                  WHERE c.Copy_id = ? AND c.Is_deleted = FALSE`,
                 [copyId]);
             if (copies.length === 0) {
                 return res.status(404).json({ message: `No copy found with ID ${copyId}.` });
@@ -813,7 +815,7 @@ router.get('/holds', isStaff, async (req, res) => {
                     DATE_FORMAT(h.Expiry_date, '%Y-%m-%d') AS expiry_date,
                     (SELECT c.Copy_id FROM Copy c
                       WHERE c.Item_id = h.Item_id
-                        AND c.Status = 'available'
+                        AND c.Status = 'available' AND c.Is_deleted = FALSE
                         AND c.Copy_id NOT IN (SELECT Reserved_copy_id FROM Hold
                                                WHERE Status = 'Ready' AND Reserved_copy_id IS NOT NULL)
                       ORDER BY c.Copy_id LIMIT 1) AS free_copy_id,

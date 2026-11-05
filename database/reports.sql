@@ -69,4 +69,5 @@ SELECT CatalogItem.Item_id,
 FROM Loan
 JOIN Copy        ON Copy.Copy_id       = Loan.Copy_id
 JOIN CatalogItem ON CatalogItem.Item_id = Copy.Item_id
+WHERE CatalogItem.Is_deleted = FALSE                  -- items deleted in the app are hidden here too
 GROUP BY CatalogItem.Item_id,CatalogItem.Title, CatalogItem.Item_type;

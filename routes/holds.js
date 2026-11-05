@@ -49,7 +49,7 @@ router.post('/api/holds', isAuthenticated, memberForHolds, async (req, res) => {
     const itemId = Number(req.body.itemId);
     if (!itemId) return res.status(400).json({ error: 'Missing item.' });
 
-    const [items] = await db.query('SELECT Item_id FROM CatalogItem WHERE Item_id = ?', [itemId]);
+    const [items] = await db.query('SELECT Item_id FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE', [itemId]);
     if (!items.length) return res.status(404).json({ error: 'Item not found.' });
 
     await db.query(
