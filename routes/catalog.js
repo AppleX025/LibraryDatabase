@@ -2,8 +2,11 @@
 const { Router } = require('../lib/router');   // our own small router (lib/router.js)
 const router = Router();
 const db = require('../config/db');
-const { isStaff } = require('../middleware/auth');
-router.use(isStaff);
+const { isStaff, isAdmin } = require('../middleware/auth');
+// Staff (librarians) may LOOK at the catalog and its copies: they need the Copy ID to check an item out.
+// Changing the catalog (adding or editing items, publishers, authors, copies, withdrawing a copy)
+// is for administrators only. GET only reads, so it needs staff; every other method changes data.
+router.use((req, res, next) => (req.method === 'GET' ? isStaff(req, res, next) : isAdmin(req, res, next)));
 
 const TYPES = {
   book: { table: 'Book', fields: ['Isbn', 'Genre'] },

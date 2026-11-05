@@ -2,6 +2,10 @@
 const $ = id => document.getElementById(id);
 let currentId = null;
 let catalog = [], publishers = [], authors = [];
+// canEdit is true for administrators. Ordinary staff get a read-only catalog: they can look at an
+// item and its copies (they need the Copy ID to check an item out) but cannot add, edit or withdraw.
+// The server enforces this too (routes/catalog.js); this only hides the buttons they cannot use.
+let canEdit = false;
 const fields = {
   book: [['Isbn','ISBN (10 or 13 characters)'],['Genre','Genre']],
   videogame: [['Platform','Platform'],['Developer','Developer'],['Esrb_rating','ESRB rating']],
@@ -41,7 +45,7 @@ function renderCatalog() {
   if (!rows.length) { const tr=el('tr'); const td=el('td','No matching items.');td.colSpan=8;tr.append(td);body.append(tr);return; }
   rows.forEach(r=>{
     const tr=el('tr'); [r.Item_id,r.Title,r.Item_type,r.Publisher_name||'—',r.Total_copies,r.Available_copies,r.Withdrawn_copies].forEach(v=>tr.append(el('td',v)));
-    const td=el('td');const b=el('button','Edit');b.type='button';b.addEventListener('click',()=>editItem(r.Item_id));td.append(b);tr.append(td);body.append(tr);
+    const td=el('td');const b=el('button',canEdit?'Edit':'View copies');b.type='button';b.addEventListener('click',()=>editItem(r.Item_id));td.append(b);tr.append(td);body.append(tr);
   });
 }
 async function loadCatalog() { catalog = await api('/items'); renderCatalog(); }
@@ -70,7 +74,9 @@ async function editItem(id) {
     const item=await api('/items/'+id); currentId=id; $('itemForm').reset();
     fillForm($('itemForm'),item); $('itemType').disabled=true; renderExtras(item);
     [...$('authorSelect').options].forEach(o=>o.selected=item.Author_ids.includes(Number(o.value)));
-    $('itemHeading').textContent=`Edit item #${id}`; $('copiesPanel').hidden=false; renderCopies(item.copies); $('dateAcquired').value=new Date().toISOString().slice(0,10);showTab('item');
+    $('itemHeading').textContent=canEdit?`Edit item #${id}`:`Copies of "${item.Title}"`; $('copiesPanel').hidden=false; renderCopies(item.copies); $('dateAcquired').value=new Date().toISOString().slice(0,10);
+    // Staff only look: hide the item form and the "Add a copy" form (the copies table stays).
+    $('itemForm').hidden=!canEdit; $('copyForm').hidden=!canEdit; showTab('item');
   } catch(e) { notify(e.message,true); }
 }
 function renderCopies(copies) {
@@ -78,7 +84,7 @@ function renderCopies(copies) {
   if (!copies.length) {const tr=el('tr');const td=el('td','No copies yet.');td.colSpan=5;tr.append(td);body.append(tr);}
   copies.forEach(c=>{
     const tr=el('tr');[c.Copy_id,c.Condition,c.Shelf_location||'—',c.Status].forEach(v=>tr.append(el('td',v)));
-    const td=el('td');if(c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
+    const td=el('td');if(canEdit && c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
   });
 }
 // withdraw(id, button): asks inside the page first (askInline, inline-confirm.js), then withdraws the copy.
@@ -113,4 +119,14 @@ $('authorForm').addEventListener('submit',async e=>{
 $('search').addEventListener('input',renderCatalog);
 $('newItem').addEventListener('click',newItem);$('cancelItem').addEventListener('click',()=>showTab('catalog'));
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.tab==='item')newItem();else showTab(b.dataset.tab);}));
-(async()=>{try{await Promise.all([loadCatalog(),loadLists()]);$('dateAcquired').value=new Date().toISOString().slice(0,10);}catch(e){notify(e.message,true);}})();
+// applyRole(): ask the server who this is (GET /me) and, for staff who are not administrators,
+// hide everything that changes the catalog. Runs before the catalog is drawn.
+async function applyRole() {
+  try { canEdit = !!(await (await fetch('/me')).json()).isAdmin; } catch (e) { canEdit = false; }
+  if (!canEdit) {
+    $('newItem').hidden = true;
+    document.querySelector('[data-tab="item"]').hidden = true;
+    document.querySelector('[data-tab="people"]').hidden = true;
+  }
+}
+(async()=>{try{await applyRole();await Promise.all([loadCatalog(),loadLists()]);$('dateAcquired').value=new Date().toISOString().slice(0,10);}catch(e){notify(e.message,true);}})();

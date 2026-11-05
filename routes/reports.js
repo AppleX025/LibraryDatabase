@@ -13,16 +13,17 @@ const router = Router();
 // The database connection (a pool of MySQL connections set up in config/db.js).
 const db = require('../config/db');
 
-// isStaff: Juan's check that the person is logged in AND is staff.
+// isAdmin: checks that the person is logged in AND is an administrator. Reports are for
+// managers (administrators) only; ordinary staff do circulation, not management reporting.
 // The { } takes just that one function out of middleware/auth.js.
-const { isStaff } = require('../middleware/auth');
+const { isAdmin } = require('../middleware/auth');
 
 // ---------------------------------------------------------------------
 // GET /api/reports/overdue
 // Overdue loans, most overdue first. Staff only.
 // (app.js adds the "/api/reports" part; this file adds "/overdue".)
 // ---------------------------------------------------------------------
-router.get('/overdue', isStaff, async (req, res) => {
+router.get('/overdue', isAdmin, async (req, res) => {
     try {
         // Ask MySQL for the saved view Overdue_Loans (one row per loan that is
         // past its due date). Views don't sort, so we sort here: the loan that
@@ -47,7 +48,7 @@ router.get('/overdue', isStaff, async (req, res) => {
 // Members who owe unpaid fines, biggest total first. Staff only.
 // (app.js adds the "/api/reports" part; this file adds "/fines".)
 // ---------------------------------------------------------------------
-router.get('/fines', isStaff, async (req, res) => {
+router.get('/fines', isAdmin, async (req, res) => {
     try {
         // Ask MySQL for the saved view Member_Fines (one row per member who
         // still owes money). Views don't sort, so we sort here:
@@ -73,7 +74,7 @@ router.get('/fines', isStaff, async (req, res) => {
 // loans count too), most borrowed first. Staff only.
 // (app.js adds the "/api/reports" part; this file adds "/borrowed".)
 // ---------------------------------------------------------------------
-router.get('/borrowed', isStaff, async (req, res) => {
+router.get('/borrowed', isAdmin, async (req, res) => {
     try {
         // Ask MySQL for the saved view Most_Borrowed_Items (one row per item
         // that was borrowed at least once). Views don't sort, so we sort here:

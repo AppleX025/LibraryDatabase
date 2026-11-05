@@ -15,7 +15,7 @@ const db = require('../config/db');
 
 // isStaff blocks anyone who is not a logged-in staff member (middleware/auth.js).
 // It is listed before the route function, so it runs first.
-const { isStaff } = require('../middleware/auth');
+const { isStaff, isAdmin } = require('../middleware/auth');   // staff may look members up; only administrators may change them
 
 function parseMemberId(value) {
   // Only digits, and the first digit cannot be 0, so "0", "-5", "1.5" and "abc" all fail.
@@ -74,7 +74,7 @@ router.get('/', isStaff, async (req, res) => {
 // PUT /api/members/:id
 // Edits one member's details and member type. The username and password are not changed here.
 // :id is the Member_id and arrives as req.params.id.
-router.put('/:id', isStaff, async (req, res) => {
+router.put('/:id', isAdmin, async (req, res) => {
   
   // Collect the values the page sent. clean() turns blanks into null so optional
   // fields (phone, street, ...) are stored as empty instead of as ''.
@@ -154,7 +154,7 @@ router.put('/:id', isStaff, async (req, res) => {
 // Deactivates or reactivates one account. The page sends { active: true } or { active: false }.
 // Members are never deleted: loans and fines refer to them, so the history must stay.
 // Login already refuses accounts where Is_active is off.
-router.patch('/:id/active', isStaff, async (req, res) => {
+router.patch('/:id/active', isAdmin, async (req, res) => {
   const id = parseMemberId(req.params.id);
   if (id === null) return res.status(400).json({ message: 'The member id must be a positive whole number.' });
 

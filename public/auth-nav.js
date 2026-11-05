@@ -43,7 +43,9 @@ const STAFF_LINKS  = [
 // me is the answer from /me: { loggedIn, isStaff, isAdmin, name }
 function buildMenu(me) {
   if (!me.loggedIn) return [SEARCH_LINK, REGISTER_LINK];     // only Search and Register
-  if (me.isStaff)   return [SEARCH_LINK, ...STAFF_LINKS];   // Search plus the staff links
+  // Staff get the circulation links. Reports are for administrators only, so an
+  // ordinary staff member does not see that link (the server refuses them anyway).
+  if (me.isStaff)   return [SEARCH_LINK, ...STAFF_LINKS.filter(link => link[0] !== 'Reports' || me.isAdmin)];
   return [SEARCH_LINK, ...MEMBER_LINKS];                    // Search plus the member links
 }
 
@@ -122,7 +124,8 @@ function footerColumns(me) {
       ['Circulation', [['Checkout', '/circulation/checkout.html'], ['Return', '/circulation/return.html'],
                        ['Renew', '/circulation/renew.html'], ['Open loans', '/circulation/open-loans.html']]],
       ['Manage', [['Catalog', '/catalog-admin.html'], ['Members', '/members-admin.html'],
-                  ['Fines', '/fines-admin.html'], ['Reports', '/reports/overdue.html']]]
+                  ['Fines', '/fines-admin.html'],
+                  ...(me.isAdmin ? [['Reports', '/reports/overdue.html']] : [])]]   // Reports: administrators only
     ];
   }
   return [
@@ -174,9 +177,10 @@ function shortcutTiles(me) {
     return [
       ['Checkout',   'Lend an item, or pick up a hold.',   '/circulation/checkout.html'],
       ['Return',     'Take an item back in.',              '/circulation/return.html'],
-      ['Fines',      'Collect or waive fines.',            '/fines-admin.html'],
-      ['Members',    'Find and edit member accounts.',     '/members-admin.html'],
-      ['Reports',    'Overdue loans, fines, borrowing.',   '/reports/overdue.html']
+      ['Fines',      me.isAdmin ? 'Collect or waive fines.' : 'Collect fines.', '/fines-admin.html'],
+      ['Members',    me.isAdmin ? 'Find and edit member accounts.' : 'Look up member accounts.', '/members-admin.html'],
+      // Reports are for administrators only
+      ...(me.isAdmin ? [['Reports', 'Overdue loans, fines, borrowing.', '/reports/overdue.html']] : [])
     ];
   }
   return [
@@ -211,6 +215,7 @@ function drawShortcuts(me) {
 // Page guard
 // ---------------------------------------------------------------------
 // A page marks who may use it with an attribute on its <body>:
+//   <body data-access="admin">   administrators only (reports)
 //   <body data-access="staff">   staff only (catalog, circulation, fines, reports, staff holds)
 //   <body data-access="login">   any logged-in person (My Holds, My Loans)
 //   no attribute                 open to everyone (Search, Login)
@@ -221,7 +226,8 @@ function drawShortcuts(me) {
 // Returns true when the visitor was sent away.
 function guardPage(me) {
   const access = document.body.dataset.access;   // reads the data-access attribute
-  const mayStay = access === 'staff' ? me.isStaff
+  const mayStay = access === 'admin' ? me.isAdmin
+                : access === 'staff' ? me.isStaff
                 : access === 'login' ? me.loggedIn
                 : true;
   if (mayStay) return false;

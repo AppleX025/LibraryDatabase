@@ -32,6 +32,9 @@ function cell(text) {
 }
 
 // Loads the members that match the search box and redraws the table.
+// true for administrators (set by startPage at the bottom); decides whether the Edit / Deactivate buttons are drawn
+let canEdit = false;
+
 async function loadMembers({ keepMessage = false } = {}) {
   const q = encodeURIComponent(document.getElementById('search').value);
   const { res, data } = await api('?q=' + q, 'GET');
@@ -47,6 +50,13 @@ async function loadMembers({ keepMessage = false } = {}) {
     tr.appendChild(cell(m.Is_active ? 'Active' : 'Inactive'));
 
     const actions = document.createElement('td');
+    // Only administrators may edit or deactivate accounts. Staff just look members up
+    // (the server refuses staff too, in routes/members.js); show an empty Actions cell.
+    if (!canEdit) {
+      tr.appendChild(actions);
+      rows.appendChild(tr);
+      continue;
+    }
 
     const edit = document.createElement('button');
     edit.textContent = 'Edit';
@@ -119,4 +129,14 @@ document.getElementById('search').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') loadMembers();
 });
 
-loadMembers(); // show everyone when the page opens
+// Ask who is visiting (GET /me) before the first list is drawn: administrators get the
+// Edit and Deactivate buttons, ordinary staff get a read-only list.
+async function startPage() {
+  try { canEdit = !!(await (await fetch('/me')).json()).isAdmin; } catch (e) { canEdit = false; }
+  if (!canEdit) {
+    const title = document.querySelector('h1');
+    if (title) title.insertAdjacentHTML('afterend', '<p class="muted">You can look up members here. Only an administrator can edit or deactivate an account.</p>');
+  }
+  loadMembers(); // show everyone when the page opens
+}
+startPage();
