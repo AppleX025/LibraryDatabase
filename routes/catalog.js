@@ -73,7 +73,7 @@ function validateItem(input) {
 function handleError(res, err) {
   if (err.status) return res.status(err.status).json({ message: err.message });
   if (err.code === 'ER_DUP_ENTRY') {
-    const message = /isbn/i.test(err.sqlMessage || '') ? 'That ISBN is already in use.' : /barcode/i.test(err.sqlMessage || '') ? 'That barcode is already in use.' : /publisher/i.test(err.sqlMessage || '') ? 'That publisher already exists.' : /newspaper/i.test(err.sqlMessage || '') ? 'That newspaper issue already exists.' : /doi/i.test(err.sqlMessage || '') ? 'That DOI is already in use.' : 'This record already exists.';
+    const message = /isbn/i.test(err.sqlMessage || '') ? 'That ISBN is already in use.' : /publisher/i.test(err.sqlMessage || '') ? 'That publisher already exists.' : /newspaper/i.test(err.sqlMessage || '') ? 'That newspaper issue already exists.' : /doi/i.test(err.sqlMessage || '') ? 'That DOI is already in use.' : 'This record already exists.';
     return res.status(409).json({ message });
   }
   if (['ER_NO_REFERENCED_ROW_2','ER_ROW_IS_REFERENCED_2'].includes(err.code)) return res.status(400).json({ message: 'A referenced publisher, author, or item is missing or in use.' });
@@ -132,7 +132,7 @@ router.get('/items/:id', async (req, res) => {
       : '*';
     const [[extra]] = await db.query(`SELECT ${detailColumns} FROM \`${spec.table}\` WHERE Item_id = ?`, [id]);
     // Return the date as YYYY-MM-DD text, not a JavaScript Date in UTC.
-    const [copies] = await db.execute("SELECT Copy_id, Barcode, `Condition`, Shelf_location, Status, DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired FROM Copy WHERE Item_id = ? ORDER BY Copy_id", [id]);
+    const [copies] = await db.execute("SELECT Copy_id, `Condition`, Shelf_location, Status, DATE_FORMAT(Date_acquired, '%Y-%m-%d') AS Date_acquired FROM Copy WHERE Item_id = ? ORDER BY Copy_id", [id]);
     let authors = [];
     if (item.Item_type === 'book' || item.Item_type === 'researchpaper') {
       const junction = item.Item_type === 'book' ? 'BookAuthor' : 'PaperAuthor';
@@ -180,21 +180,16 @@ router.put('/items/:id', async (req, res) => {
 router.post('/items/:id/copies', async (req, res) => {
   try {
     const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
-    // Barcodes follow one format: LIB- and four to eight digits (LIB-0001, LIB-123456).
-    // Eight digits allow up to a hundred million copies; the column holds up to 20 characters.
-    // Typed in lower case (lib-0001) is accepted and saved in upper case, so the
-    // same copy is never stored two ways and checkout finds it either way.
-    const barcodeText = optionalText(req.body.Barcode);
-    const barcode = barcodeText ? barcodeText.toUpperCase() : null;
+    // A copy has no barcode: the library has no scanners, so staff identify a copy by its
+    // Copy ID, the number the database gives it when it is added (shown in the table).
     const condition = req.body.Condition;
     const shelf = optionalText(req.body.Shelf_location);
-    if (!barcode || !/^LIB-[0-9]{4,8}$/.test(barcode)) throw bad('Barcode must look like LIB-0001 (LIB- and four to eight digits).');
     if (!['new','good','worn','damaged'].includes(condition)) throw bad('Select a valid copy condition.');
     if (shelf && shelf.length > 30) throw bad('Shelf location is too long.');
     const date = req.body.Date_acquired || new Date().toISOString().slice(0,10);
     if (!isRealDate(date)) throw bad('Enter a real date for the acquisition date (YYYY-MM-DD).');
-    const [r] = await db.execute('INSERT INTO Copy (Item_id, Barcode, `Condition`, Shelf_location, Date_acquired) VALUES (?, ?, ?, ?, ?)', [id,barcode,condition,shelf,date]);
-    res.status(201).json({ Copy_id: r.insertId, message: 'Copy added.' });
+    const [r] = await db.execute('INSERT INTO Copy (Item_id, `Condition`, Shelf_location, Date_acquired) VALUES (?, ?, ?, ?)', [id,condition,shelf,date]);
+    res.status(201).json({ Copy_id: r.insertId, message: `Copy added. Its Copy ID is ${r.insertId}.` });
   } catch (err) { handleError(res, err); }
 });
 router.patch('/copies/:id/withdraw', async (req, res) => {

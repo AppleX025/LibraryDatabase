@@ -114,28 +114,28 @@ INSERT INTO PaperAuthor (Item_id, Author_id) VALUES
 
 -- =====================================================================
 -- 4. Physical copies. All start 'available' (no loans are created here).
---    Barcodes continue after the existing LIB-0001..0016 and LIB-0101..0103.
+--    Copy IDs continue after the copies already created in Sample_data.sql.
 -- =====================================================================
-INSERT INTO Copy (Item_id, Barcode, `Condition`, Shelf_location, Date_acquired) VALUES
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Hobbit'),                'LIB-0017', 'good', 'FIC-TOL', '2024-01-10'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Hobbit'),                'LIB-0018', 'new',  'FIC-TOL', '2025-02-14'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Fahrenheit 451'),            'LIB-0019', 'good', 'FIC-BRA', '2023-09-05'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Fahrenheit 451'),            'LIB-0020', 'worn', 'FIC-BRA', '2021-03-22'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Great Gatsby'),          'LIB-0021', 'good', 'FIC-FIT', '2023-05-17'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Great Gatsby'),          'LIB-0022', 'good', 'FIC-FIT', '2023-05-17'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Brave New World'),           'LIB-0023', 'good', 'FIC-HUX', '2022-08-09'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Brave New World'),           'LIB-0024', 'good', 'FIC-HUX', '2022-08-09'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Frankenstein'),              'LIB-0025', 'worn', 'FIC-SHE', '2020-10-30'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'),  'LIB-0026', 'new',  'TXT-DB',  '2025-08-18'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'),  'LIB-0027', 'good', 'TXT-DB',  '2025-08-18'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'),  'LIB-0028', 'good', 'TXT-DB',  '2025-08-18'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Legend of Zelda: Breath of the Wild'), 'LIB-0201', 'good', 'GAME-A', '2024-11-20'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Legend of Zelda: Breath of the Wild'), 'LIB-0202', 'good', 'GAME-A', '2024-11-20'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Minecraft'),                 'LIB-0203', 'new',  'GAME-B', '2025-01-12'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Catan'),                     'LIB-0301', 'good', 'BOARD-A', '2023-12-01'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Ticket to Ride'),            'LIB-0302', 'good', 'BOARD-A', '2023-12-01'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Ticket to Ride'),            'LIB-0303', 'worn', 'BOARD-A', '2021-12-15'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Abbey Road'),                'LIB-0401', 'good', 'CD-A', '2022-04-04'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Thriller'),                  'LIB-0402', 'good', 'CD-A', '2022-04-04'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Houston Chronicle, October 20, 2026'), 'LIB-0501', 'new', 'NEWS-A', '2026-10-20'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='A Relational Model of Data for Large Shared Data Banks'), 'LIB-0601', 'good', 'PAPER-A', '2024-09-01');
+INSERT INTO Copy (Item_id, `Condition`, Shelf_location, Date_acquired) VALUES
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Hobbit'), 'good', 'FIC-TOL', '2024-01-10'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Hobbit'), 'new',  'FIC-TOL', '2025-02-14'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Fahrenheit 451'), 'good', 'FIC-BRA', '2023-09-05'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Fahrenheit 451'), 'worn', 'FIC-BRA', '2021-03-22'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Great Gatsby'), 'good', 'FIC-FIT', '2023-05-17'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Great Gatsby'), 'good', 'FIC-FIT', '2023-05-17'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Brave New World'), 'good', 'FIC-HUX', '2022-08-09'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Brave New World'), 'good', 'FIC-HUX', '2022-08-09'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Frankenstein'), 'worn', 'FIC-SHE', '2020-10-30'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'), 'new',  'TXT-DB',  '2025-08-18'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'), 'good', 'TXT-DB',  '2025-08-18'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Database System Concepts'), 'good', 'TXT-DB',  '2025-08-18'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Legend of Zelda: Breath of the Wild'), 'good', 'GAME-A', '2024-11-20'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Legend of Zelda: Breath of the Wild'), 'good', 'GAME-A', '2024-11-20'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Minecraft'), 'new',  'GAME-B', '2025-01-12'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Catan'), 'good', 'BOARD-A', '2023-12-01'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Ticket to Ride'), 'good', 'BOARD-A', '2023-12-01'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Ticket to Ride'), 'worn', 'BOARD-A', '2021-12-15'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Abbey Road'), 'good', 'CD-A', '2022-04-04'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Thriller'), 'good', 'CD-A', '2022-04-04'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Houston Chronicle, October 20, 2026'), 'new', 'NEWS-A', '2026-10-20'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='A Relational Model of Data for Large Shared Data Banks'), 'good', 'PAPER-A', '2024-09-01');

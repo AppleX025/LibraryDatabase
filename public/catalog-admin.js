@@ -77,7 +77,7 @@ function renderCopies(copies) {
   const body=$('copyRows');body.replaceChildren();
   if (!copies.length) {const tr=el('tr');const td=el('td','No copies yet.');td.colSpan=5;tr.append(td);body.append(tr);}
   copies.forEach(c=>{
-    const tr=el('tr');[c.Barcode,c.Condition,c.Shelf_location||'—',c.Status].forEach(v=>tr.append(el('td',v)));
+    const tr=el('tr');[c.Copy_id,c.Condition,c.Shelf_location||'—',c.Status].forEach(v=>tr.append(el('td',v)));
     const td=el('td');if(c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
   });
 }

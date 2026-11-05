@@ -150,77 +150,77 @@ INSERT INTO BookAuthor (Item_id, Author_id) VALUES
  ((SELECT Item_id FROM CatalogItem WHERE Title='Murder on the Orient Express'), (SELECT Author_id FROM Author WHERE Last_name='Christie'));
 
 -- =====================================================================
--- 5. Physical copies (two per book, DVDs 2 + 1). Barcode identifies each copy.
+-- 5. Physical copies (two per book, DVDs 2 + 1). Each copy gets its Copy_id (1, 2, 3 ...) automatically, in the order listed here.
 --    All start as 'available'; section 9 flips copies with open loans to 'on loan'.
 -- =====================================================================
-INSERT INTO Copy (Item_id, Barcode, `Condition`, Shelf_location, Date_acquired) VALUES
- ((SELECT Item_id FROM CatalogItem WHERE Title='1984'), 'LIB-0001', 'good', 'FIC-ORW', '2023-01-15'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='1984'), 'LIB-0002', 'good', 'FIC-ORW', '2023-01-15'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='To Kill a Mockingbird'), 'LIB-0003', 'good', 'FIC-LEE', '2023-02-01'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='To Kill a Mockingbird'), 'LIB-0004', 'worn', 'FIC-LEE', '2021-09-10'),
- ((SELECT Item_id FROM CatalogItem WHERE Title LIKE 'Harry Potter%'), 'LIB-0005', 'good', 'FIC-ROW', '2023-03-05'),
- ((SELECT Item_id FROM CatalogItem WHERE Title LIKE 'Harry Potter%'), 'LIB-0006', 'new',  'FIC-ROW', '2024-08-20'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Dune'), 'LIB-0007', 'good', 'SCI-HER', '2023-04-12'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Dune'), 'LIB-0008', 'good', 'SCI-HER', '2023-04-12'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Pride and Prejudice'), 'LIB-0009', 'good', 'FIC-AUS', '2022-05-30'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Pride and Prejudice'), 'LIB-0010', 'good', 'FIC-AUS', '2022-05-30'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Murder on the Orient Express'), 'LIB-0011', 'good', 'MYS-CHR', '2023-06-18'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Murder on the Orient Express'), 'LIB-0012', 'worn', 'MYS-CHR', '2020-11-02'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Animal Farm'), 'LIB-0013', 'good', 'FIC-ORW', '2023-01-15'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Animal Farm'), 'LIB-0014', 'good', 'FIC-ORW', '2023-01-15'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), 'LIB-0015', 'good', 'FIC-AUS', '2022-05-30'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), 'LIB-0016', 'good', 'FIC-AUS', '2022-05-30'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Jurassic Park'), 'LIB-0101', 'good', 'DVD-A', '2022-10-01'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='Jurassic Park'), 'LIB-0102', 'good', 'DVD-A', '2022-10-01'),
- ((SELECT Item_id FROM CatalogItem WHERE Title='The Shawshank Redemption'), 'LIB-0103', 'good', 'DVD-B', '2022-10-01');
+INSERT INTO Copy (Item_id, `Condition`, Shelf_location, Date_acquired) VALUES
+ ((SELECT Item_id FROM CatalogItem WHERE Title='1984'), 'good', 'FIC-ORW', '2023-01-15'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='1984'), 'good', 'FIC-ORW', '2023-01-15'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='To Kill a Mockingbird'), 'good', 'FIC-LEE', '2023-02-01'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='To Kill a Mockingbird'), 'worn', 'FIC-LEE', '2021-09-10'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title LIKE 'Harry Potter%'), 'good', 'FIC-ROW', '2023-03-05'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title LIKE 'Harry Potter%'), 'new',  'FIC-ROW', '2024-08-20'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Dune'), 'good', 'SCI-HER', '2023-04-12'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Dune'), 'good', 'SCI-HER', '2023-04-12'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Pride and Prejudice'), 'good', 'FIC-AUS', '2022-05-30'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Pride and Prejudice'), 'good', 'FIC-AUS', '2022-05-30'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Murder on the Orient Express'), 'good', 'MYS-CHR', '2023-06-18'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Murder on the Orient Express'), 'worn', 'MYS-CHR', '2020-11-02'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Animal Farm'), 'good', 'FIC-ORW', '2023-01-15'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Animal Farm'), 'good', 'FIC-ORW', '2023-01-15'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), 'good', 'FIC-AUS', '2022-05-30'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), 'good', 'FIC-AUS', '2022-05-30'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Jurassic Park'), 'good', 'DVD-A', '2022-10-01'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='Jurassic Park'), 'good', 'DVD-A', '2022-10-01'),
+ ((SELECT Item_id FROM CatalogItem WHERE Title='The Shawshank Redemption'), 'good', 'DVD-B', '2022-10-01');
 
 -- =====================================================================
 -- 6. Loans that were returned ON TIME (history; they make 1984 and Dune the "most borrowed")
 --    Standard loan = 14 days. Columns: copy, member, out-staff, type, checkout, due, returned, in-staff
 -- =====================================================================
 INSERT INTO Loan (Copy_id, Member_id, Staff_id, Loan_type, Checkout_date, Due_date, Return_date, Return_staff_id) VALUES
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0001'), @alice, @staff_out, 'standard', NOW() - INTERVAL 60 DAY, CURDATE() - INTERVAL 46 DAY, CURDATE() - INTERVAL 50 DAY, @staff_in),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0001'), @bob,   @staff_out, 'standard', NOW() - INTERVAL 45 DAY, CURDATE() - INTERVAL 31 DAY, CURDATE() - INTERVAL 40 DAY, @staff_in),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0001'), @carla, @staff_out, 'standard', NOW() - INTERVAL 35 DAY, CURDATE() - INTERVAL 21 DAY, CURDATE() - INTERVAL 25 DAY, @staff_in),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0007'), @dan,   @staff_out, 'standard', NOW() - INTERVAL 50 DAY, CURDATE() - INTERVAL 36 DAY, CURDATE() - INTERVAL 42 DAY, @staff_in),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0008'), @eva,   @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY, CURDATE() - INTERVAL 20 DAY, @staff_in),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0005'), @alice, @staff_out, 'standard', NOW() - INTERVAL 28 DAY, CURDATE() - INTERVAL 14 DAY, CURDATE() - INTERVAL 18 DAY, @staff_in),
+ (1, @alice, @staff_out, 'standard', NOW() - INTERVAL 60 DAY, CURDATE() - INTERVAL 46 DAY, CURDATE() - INTERVAL 50 DAY, @staff_in),
+ (1, @bob,   @staff_out, 'standard', NOW() - INTERVAL 45 DAY, CURDATE() - INTERVAL 31 DAY, CURDATE() - INTERVAL 40 DAY, @staff_in),
+ (1, @carla, @staff_out, 'standard', NOW() - INTERVAL 35 DAY, CURDATE() - INTERVAL 21 DAY, CURDATE() - INTERVAL 25 DAY, @staff_in),
+ (7, @dan,   @staff_out, 'standard', NOW() - INTERVAL 50 DAY, CURDATE() - INTERVAL 36 DAY, CURDATE() - INTERVAL 42 DAY, @staff_in),
+ (8, @eva,   @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY, CURDATE() - INTERVAL 20 DAY, @staff_in),
+ (5, @alice, @staff_out, 'standard', NOW() - INTERVAL 28 DAY, CURDATE() - INTERVAL 14 DAY, CURDATE() - INTERVAL 18 DAY, @staff_in),
  -- a SHORT loan (3 days, no renewals) on a DVD
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0101'), @bob,   @staff_out, 'short',    NOW() - INTERVAL 20 DAY, CURDATE() - INTERVAL 17 DAY, CURDATE() - INTERVAL 18 DAY, @staff_in);
+ (17, @bob,   @staff_out, 'short',    NOW() - INTERVAL 20 DAY, CURDATE() - INTERVAL 17 DAY, CURDATE() - INTERVAL 18 DAY, @staff_in);
 
 -- =====================================================================
 -- 7. Loans that come back LATE. Step 1: create them as OPEN loans.
 --    Step 2 (right after): record the return with an UPDATE; the trigger then adds the fine + notification.
 -- =====================================================================
 INSERT INTO Loan (Copy_id, Member_id, Staff_id, Loan_type, Checkout_date, Due_date) VALUES
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0003'), @alice,      @staff_out, 'standard', NOW() - INTERVAL 45 DAY, CURDATE() - INTERVAL 31 DAY),  -- will be 6 days late
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0004'), @bob,        @staff_out, 'standard', NOW() - INTERVAL 60 DAY, CURDATE() - INTERVAL 46 DAY),  -- 43 days late -> fine capped at $10
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0009'), @carla,      @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY),  -- 10 days late (+ damaged)
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0010'), @testmember, @staff_out, 'standard', NOW() - INTERVAL 25 DAY, CURDATE() - INTERVAL 11 DAY);  -- 9 days late, fine left unpaid
+ (3, @alice,      @staff_out, 'standard', NOW() - INTERVAL 45 DAY, CURDATE() - INTERVAL 31 DAY),  -- will be 6 days late
+ (4, @bob,        @staff_out, 'standard', NOW() - INTERVAL 60 DAY, CURDATE() - INTERVAL 46 DAY),  -- 43 days late -> fine capped at $10
+ (9, @carla,      @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY),  -- 10 days late (+ damaged)
+ (10, @testmember, @staff_out, 'standard', NOW() - INTERVAL 25 DAY, CURDATE() - INTERVAL 11 DAY);  -- 9 days late, fine left unpaid
 
 -- Record each return (Return_date and Return_staff_id must be filled together). Each UPDATE fires the trigger.
 UPDATE Loan SET Return_date = CURDATE() - INTERVAL 25 DAY, Return_staff_id = @staff_in
- WHERE Copy_id = (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0003') AND Return_date IS NULL;
+ WHERE Copy_id = 3 AND Return_date IS NULL;
 UPDATE Loan SET Return_date = CURDATE() - INTERVAL 3 DAY,  Return_staff_id = @staff_in
- WHERE Copy_id = (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0004') AND Return_date IS NULL;
+ WHERE Copy_id = 4 AND Return_date IS NULL;
 UPDATE Loan SET Return_date = CURDATE() - INTERVAL 6 DAY,  Return_staff_id = @staff_in
- WHERE Copy_id = (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0009') AND Return_date IS NULL;
+ WHERE Copy_id = 9 AND Return_date IS NULL;
 UPDATE Loan SET Return_date = CURDATE() - INTERVAL 2 DAY,  Return_staff_id = @staff_in
- WHERE Copy_id = (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0010') AND Return_date IS NULL;
+ WHERE Copy_id = 10 AND Return_date IS NULL;
 
 -- =====================================================================
 -- 8. Loans that are still OPEN: three overdue (for the overdue report) and four not yet due
 -- =====================================================================
 INSERT INTO Loan (Copy_id, Member_id, Staff_id, Loan_type, Checkout_date, Due_date) VALUES
  -- overdue
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0011'), @testmember, @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0013'), @dan,        @staff_out, 'standard', NOW() - INTERVAL 20 DAY, CURDATE() - INTERVAL 6 DAY),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0002'), @eva,        @staff_out, 'standard', NOW() - INTERVAL 18 DAY, CURDATE() - INTERVAL 4 DAY),
+ (11, @testmember, @staff_out, 'standard', NOW() - INTERVAL 30 DAY, CURDATE() - INTERVAL 16 DAY),
+ (13, @dan,        @staff_out, 'standard', NOW() - INTERVAL 20 DAY, CURDATE() - INTERVAL 6 DAY),
+ (2, @eva,        @staff_out, 'standard', NOW() - INTERVAL 18 DAY, CURDATE() - INTERVAL 4 DAY),
  -- not yet due
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0006'), @alice,      @staff_out, 'standard', NOW() - INTERVAL 3 DAY,  CURDATE() + INTERVAL 11 DAY),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0014'), @carla,      @staff_out, 'standard', NOW() - INTERVAL 10 DAY, CURDATE() + INTERVAL 4 DAY),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0102'), @bob,        @staff_out, 'short',    NOW() - INTERVAL 2 DAY,  CURDATE() + INTERVAL 1 DAY),
- ((SELECT Copy_id FROM Copy WHERE Barcode='LIB-0012'), @eva,        @staff_out, 'standard', NOW() - INTERVAL 1 DAY,  CURDATE() + INTERVAL 13 DAY);
+ (6, @alice,      @staff_out, 'standard', NOW() - INTERVAL 3 DAY,  CURDATE() + INTERVAL 11 DAY),
+ (14, @carla,      @staff_out, 'standard', NOW() - INTERVAL 10 DAY, CURDATE() + INTERVAL 4 DAY),
+ (18, @bob,        @staff_out, 'short',    NOW() - INTERVAL 2 DAY,  CURDATE() + INTERVAL 1 DAY),
+ (12, @eva,        @staff_out, 'standard', NOW() - INTERVAL 1 DAY,  CURDATE() + INTERVAL 13 DAY);
 
 -- A copy with an open loan is 'on loan' (the app keeps this in sync; here we set it once)
 UPDATE Copy c JOIN Loan l ON l.Copy_id = c.Copy_id AND l.Return_date IS NULL
@@ -236,14 +236,14 @@ UPDATE Fine f JOIN Loan l ON l.Loan_id = f.Loan_id SET f.Date_assessed = l.Retur
 -- Alice's late return was paid (Is_paid and Date_paid must agree)
 UPDATE Fine f JOIN Loan l ON l.Loan_id = f.Loan_id
    SET f.Is_paid = TRUE, f.Date_paid = CURDATE()
- WHERE l.Copy_id = (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0003') AND f.Fine_type = 'overdue';
+ WHERE l.Copy_id = 3 AND f.Fine_type = 'overdue';
 
 -- Carla returned LIB-0009 damaged: mark the copy and add a 'damaged' fine = replacement cost
-UPDATE Copy SET `Condition` = 'damaged' WHERE Barcode = 'LIB-0009';
+UPDATE Copy SET `Condition` = 'damaged' WHERE Copy_id = 9;
 INSERT INTO Fine (Loan_id, Fine_type, Amount, Date_assessed)
 SELECT l.Loan_id, 'damaged', ci.Replacement_cost, l.Return_date
   FROM Loan l JOIN Copy c ON c.Copy_id = l.Copy_id JOIN CatalogItem ci ON ci.Item_id = c.Item_id
- WHERE c.Barcode = 'LIB-0009';
+ WHERE c.Copy_id = 9;
 
 -- Mini-world rule: an overdue fine also exists while the item is STILL OUT past its due date
 -- ($0.35 per day, capped at $10). Create those for the three open overdue loans, dated today.
@@ -263,7 +263,7 @@ VALUES ((SELECT Item_id FROM CatalogItem WHERE Title='Animal Farm'), @alice, 'Ac
 -- Bob's hold on Emma is ready: copy LIB-0015 is set aside for the 2-day pickup window
 INSERT INTO Hold (Item_id, Member_id, Reserved_copy_id, Status, Expiry_date)
 VALUES ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), @bob,
-        (SELECT Copy_id FROM Copy WHERE Barcode='LIB-0015'), 'Ready', CURDATE() + INTERVAL 2 DAY);
+        15, 'Ready', CURDATE() + INTERVAL 2 DAY);
 
 INSERT INTO Notification (Member_id, Notification_type, Message, Is_read) VALUES
  (@bob,        'hold_ready', 'Your hold on Emma is ready for pickup. It will be held for 2 days.', FALSE),

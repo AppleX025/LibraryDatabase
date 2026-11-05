@@ -172,13 +172,11 @@ DROP TABLE IF EXISTS `copy`;
 CREATE TABLE `copy` (
   `Copy_id` int NOT NULL AUTO_INCREMENT,
   `Item_id` int NOT NULL,
-  `Barcode` varchar(20) NOT NULL,
   `Condition` enum('new','good','worn','damaged') NOT NULL,
   `Shelf_location` varchar(30) DEFAULT NULL,
   `Status` enum('available','on loan','lost','withdrawn') NOT NULL DEFAULT 'available',
   `Date_acquired` date NOT NULL,
   PRIMARY KEY (`Copy_id`),
-  UNIQUE KEY `uq_copy_barcode` (`Barcode`),
   KEY `fk_copy_catalogitem` (`Item_id`),
   CONSTRAINT `fk_copy_catalogitem` FOREIGN KEY (`Item_id`) REFERENCES `catalogitem` (`Item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

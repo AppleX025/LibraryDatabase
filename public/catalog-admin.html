@@ -127,7 +127,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Barcode</th>
+                  <th>Copy ID</th>
                   <th>Condition</th>
                   <th>Shelf</th>
                   <th>Status</th>
@@ -142,13 +142,6 @@
             <h4>Add a copy</h4>
 
             <div class="form-grid">
-              <label>
-                Barcode
-                <!-- Format LIB- and four to eight digits, e.g. LIB-0001. The pattern accepts lower-case letters too
-                     (the server saves the barcode in upper case). The same rule is checked again on the server. -->
-                <input name="Barcode" maxlength="12" placeholder="LIB-0001" pattern="[Ll][Ii][Bb]-[0-9]{4,8}" title="LIB- and four to eight digits, for example LIB-0001" required>
-              </label>
-
               <label>
                 Condition
                 <select name="Condition">

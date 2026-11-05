@@ -320,7 +320,6 @@ CREATE TABLE PaperAuthor (
 CREATE TABLE Copy (
     Copy_id        INT AUTO_INCREMENT NOT NULL,
     Item_id        INT NOT NULL,                     -- which catalog item this is a copy of
-    Barcode        VARCHAR(20) NOT NULL,
     `Condition`    ENUM('new','good','worn','damaged') NOT NULL,   -- backticks: Condition is a reserved word
     Shelf_location VARCHAR(30) NULL,
     Status         ENUM('available','on loan','lost','withdrawn') NOT NULL DEFAULT 'available',
@@ -329,8 +328,7 @@ CREATE TABLE Copy (
     PRIMARY KEY (Copy_id),
     CONSTRAINT fk_copy_catalogitem FOREIGN KEY (Item_id)
         REFERENCES CatalogItem(Item_id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
-    CONSTRAINT uq_copy_barcode UNIQUE (Barcode)      -- every copy has its own barcode
+        ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 
 
