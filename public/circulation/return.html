@@ -29,15 +29,15 @@
 
     <main>
         <h1>Return an item</h1>
-        <p class="muted">Scan or type the barcode of the copy being returned.</p>
+        <p class="muted">Enter the ID number of the copy being returned.</p>
 
         <!-- Green on success, red (class="error") when something is wrong. Hidden until there is a message. -->
         <div id="notice" role="status" aria-live="polite" hidden></div>
 
         <section class="panel">
             <form id="returnForm">
-                <label for="barcode">Copy barcode</label>
-                <input id="barcode" name="barcode" placeholder="e.g. LIB-0002" autocomplete="off" required autofocus>
+                <label for="copy_id">Copy ID</label>
+                <input id="copy_id" name="copy_id" type="number" min="1" step="1" placeholder="e.g. 2" autocomplete="off" required autofocus>
 
                 <!-- How the copy came back. 'Returned OK' is the normal case; the other
                      two add a replacement-cost fine (see POST /api/circulation/return). -->
@@ -59,9 +59,9 @@
     <script>
         // How this page works (same pattern as checkout.html, which has
         // line-by-line notes):
-        //   1. Staff scan the returned copy's barcode.
+        //   1. Staff enter the returned copy's ID.
         //   2. Staff pick how the copy came back (OK / damaged / lost).
-        //   3. The script sends the barcode and that choice to
+        //   3. The script sends the copy ID and that choice to
         //      POST /api/circulation/return, which closes the open loan (return
         //      date + returning staff saved together).
         //   4. The database then puts an OK copy back to 'available' and, if it
@@ -91,7 +91,7 @@
             }
         }
 
-        // Runs on each scan (a scanner presses Enter, which submits the form).
+        // Runs when the form is submitted (the button is clicked or Enter is pressed).
         form.addEventListener('submit', async (event) => {
             // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
             event.preventDefault();
@@ -99,11 +99,11 @@
             submitButton.disabled = true;
 
             try {
-                // Send the barcode to the server and wait for its answer.
+                // Send the copy ID to the server and wait for its answer.
                 const response = await fetch('/api/circulation/return', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: form.barcode.value, outcome: form.outcome.value })
+                    body: JSON.stringify({ copy_id: form.copy_id.value, outcome: form.outcome.value })
                 });
                 const data = await response.json();
 
@@ -111,15 +111,15 @@
                 // response.ok is false for error answers, so those show in red.
                 showNotice(data.message, !response.ok);
 
-                // Clear the barcode so the next returned item can be scanned straight away.
+                // Clear the copy ID so the next returned item can be entered straight away.
                 // (After an error it stays, so staff can see and fix what they typed.)
                 if (response.ok) {
-                    form.barcode.value = '';
-                    // Back to the normal choice so the next scan does not carry
+                    form.copy_id.value = '';
+                    // Back to the normal choice so the next return does not carry
                     // over a 'damaged' or 'lost' selection by accident.
                     form.outcome.value = 'ok';
                 }
-                form.barcode.focus();
+                form.copy_id.focus();
             } catch (err) {
                 // fetch itself failed: the server is not running or the network is down.
                 showNotice('Could not reach the server. Please try again.', true);

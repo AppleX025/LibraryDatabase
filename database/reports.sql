@@ -18,7 +18,7 @@ SELECT Loan.Loan_id,
        CONCAT(Member.First_name, ' ', Member.Last_name)  AS member_name,  
        Member.Email                                      AS member_email,
        CatalogItem.Title                                 AS title,
-       Copy.Barcode                                      AS barcode,
+       Copy.Copy_id                                      AS copy_id,
        Loan.Due_date                                     AS due_date,
        DATEDIFF(CURDATE(), Loan.Due_date)                AS overdue_days,
        LEAST(DATEDIFF(CURDATE(), Loan.Due_date) * 0.35, 10.00) AS fine_so_far

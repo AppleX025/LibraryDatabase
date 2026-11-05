@@ -29,7 +29,7 @@
 
     <main>
         <h1>Check out an item</h1>
-        <p class="muted">Type a copy barcode, a member's username or email, or both. The matching holds appear below, each with a Check out button. To lend an item that has no hold, fill in both and press Check out.</p>
+        <p class="muted">Type a copy ID, a member's username or email, or both. The matching holds appear below, each with a Check out button. To lend an item that has no hold, fill in both and press Check out.</p>
 
         <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
         <div id="notice" role="status" aria-live="polite" hidden></div>
@@ -37,12 +37,12 @@
         <section class="panel">
             <!-- novalidate turns off the browser's own "Please fill out this field" popup.
                  If something is missing, the server says which box to fill (for example
-                 "Enter a copy barcode or a member.") and the page shows it in the red notice box above. -->
+                 "Enter a copy ID or a member.") and the page shows it in the red notice box above. -->
             <form id="checkoutForm" novalidate>
                 <div class="form-grid">
                     <div>
-                        <label for="barcode">Copy barcode</label>
-                        <input id="barcode" name="barcode" placeholder="e.g. LIB-0001" autocomplete="off">
+                        <label for="copy_id">Copy ID</label>
+                        <input id="copy_id" name="copy_id" inputmode="numeric" placeholder="e.g. 12" autocomplete="off">
                     </div>
                     <div>
                         <label for="member">Member username or email</label>
@@ -56,7 +56,7 @@
             </form>
         </section>
 
-        <!-- Filled in by the script below as staff type a barcode and/or a member: the matching
+        <!-- Filled in by the script below as staff type a copy ID and/or a member: the matching
              open holds, each with a Check out button when a copy can be handed over now.
              Hidden while both boxes are empty. -->
         <section class="panel" id="readyHolds" style="margin-top: 16px" hidden>
@@ -68,7 +68,7 @@
 
     <script>
         // How this page works:
-        //   1. Staff fill in the barcode and member, then press "Check out".
+        //   1. Staff fill in the copy ID and member, then press "Check out".
         //   2. The script sends both values to POST /api/circulation/checkout
         //      (routes/circulation.js), which checks every lending rule.
         //   3. The server answers with a message, which is shown in the notice
@@ -104,15 +104,15 @@
         // Sends one checkout to the server and shows the answer in the notice box.
         // Used by both ways of checking out: the form below, and the "Check out" buttons
         // in the "Holds ready for pickup" box. Returns true if the loan was saved.
-        //   barcode: the copy's barcode, member: the member's username or email.
-        async function checkOut(barcode, member) {
+        //   copyId: the copy's ID number, member: the member's username or email.
+        async function checkOut(copyId, member) {
             try {
                 // Send the two values to the server as JSON. "await" pauses here
                 // until the server answers.
                 const response = await fetch('/api/circulation/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: barcode, member: member })
+                    body: JSON.stringify({ copy_id: copyId, member: member })
                 });
                 // Every answer from the route is JSON with a "message".
                 const data = await response.json();
@@ -130,22 +130,22 @@
         }
 
         // Runs when the form is submitted (the button is clicked, or Enter is pressed,
-        // which is what a barcode scanner does after each scan).
+        // which is also what the keyboard's Enter key does).
         form.addEventListener('submit', async (event) => {
             // Stop the browser's normal form submit (a full page reload); we send it with fetch instead.
             event.preventDefault();
-            const barcodeText = form.barcode.value.trim();
+            const copyIdText = form.copy_id.value.trim();
             const memberText = form.member.value.trim();
 
             // Nothing typed at all: this is the only time the red message appears.
-            if (!barcodeText && !memberText) {
-                showNotice('Enter a copy barcode or a member.', true);
+            if (!copyIdText && !memberText) {
+                showNotice('Enter a copy ID or a member.', true);
                 return;
             }
             // Only one box filled: there is nothing to lend yet, and nothing is wrong either.
             // Show the holds that match (the list under the form) so staff can use a Check out
             // button there, with no red message.
-            if (!barcodeText || !memberText) {
+            if (!copyIdText || !memberText) {
                 notice.hidden = true;
                 showReadyHolds();
                 return;
@@ -154,12 +154,12 @@
             // Grey out the button while waiting, so one checkout cannot be sent twice.
             submitButton.disabled = true;
 
-            const saved = await checkOut(form.barcode.value, form.member.value);
+            const saved = await checkOut(form.copy_id.value, form.member.value);
 
-            // On success, clear the barcode so the next item can be scanned for the same member.
+            // On success, clear the copy ID so the next item can be entered for the same member.
             if (saved) {
-                form.barcode.value = '';
-                form.barcode.focus();
+                form.copy_id.value = '';
+                form.copy_id.focus();
                 // A hold may just have been picked up, so reload the "ready" list.
                 showReadyHolds();
             }
@@ -171,10 +171,10 @@
         // As staff type in either box, ask the server which open holds match
         // (GET /api/circulation/holds) and list them under the form:
         //   only a member:  all of that member's holds;
-        //   only a barcode: the holds linked to that copy (who is waiting for it);
+        //   only a copy ID: the holds linked to that copy (who is waiting for it);
         //   both:           that member's hold on that copy.
         // A hold that can be handed over now gets a "Check out" button and shows its copy's
-        // barcode; the button sends that barcode and that member for staff, so nothing has
+        // ID; the button sends that copy ID and that member for staff, so nothing has
         // to be typed. With nothing typed the list is hidden, and pressing the main
         // Check out button shows the red message (the only time red appears).
         const readyHoldsBox = document.getElementById('readyHolds');
@@ -190,7 +190,7 @@
         // holdNote(hold): the words after the title that say where the hold stands.
         function holdNote(hold) {
             if (hold.status === 'Ready') return 'ready, pick up by ' + hold.expiryDate;
-            if (hold.barcode) return 'copy available, hold placed ' + hold.placedDate;
+            if (hold.copyId) return 'copy available, hold placed ' + hold.placedDate;
             if (hold.ahead > 0) return 'waiting, ' + hold.ahead + (hold.ahead === 1 ? ' member' : ' members') + ' ahead in line';
             return 'waiting for a copy to be returned';
         }
@@ -200,7 +200,7 @@
             const n = data.holds.length;
             const count = n === 0 ? 'no open holds' : n + (n === 1 ? ' open hold' : ' open holds');
             if (data.mode === 'member') return data.member + ' has ' + count + '.';
-            if (data.mode === 'barcode') return '"' + data.copy.title + '" (' + data.copy.barcode + ', ' + data.copy.status + ') has ' + count + '.';
+            if (data.mode === 'copy') return '"' + data.copy.title + '" (copy #' + data.copy.copyId + ', ' + data.copy.status + ') has ' + count + '.';
             // both: the exact hold
             return n === 0
                 ? data.member + ' has no hold on "' + data.copy.title + '". Press Check out above to lend it normally.'
@@ -209,20 +209,20 @@
 
         // Asks the server for the holds that match the two boxes and shows them.
         async function showReadyHolds() {
-            const barcodeText = form.barcode.value.trim();
+            const copyIdText = form.copy_id.value.trim();
             const memberText = form.member.value.trim();
-            if (!barcodeText && !memberText) {
+            if (!copyIdText && !memberText) {
                 clearReadyHolds();
                 return;
             }
             try {
                 // encodeURIComponent makes the typed text safe to put in an address
                 // (for example, the "@" and "+" in an email).
-                const response = await fetch('/api/circulation/holds?barcode=' + encodeURIComponent(barcodeText) +
+                const response = await fetch('/api/circulation/holds?copy_id=' + encodeURIComponent(copyIdText) +
                                              '&member=' + encodeURIComponent(memberText));
                 // The boxes may have been edited while we waited; then this answer is for
                 // something else, and the newer request will show the right list.
-                if (form.barcode.value.trim() !== barcodeText || form.member.value.trim() !== memberText) return;
+                if (form.copy_id.value.trim() !== copyIdText || form.member.value.trim() !== memberText) return;
                 if (!response.ok) {
                     // 404 = no such member or copy: say so inside the Holds box (a plain line, not red).
                     // Any other problem (for example not logged in as staff): just hide the list.
@@ -243,7 +243,7 @@
 
                 for (const hold of data.holds) {
                     const item = document.createElement('li');
-                    if (hold.barcode) {
+                    if (hold.copyId) {
                         // A button (not a link) because clicking it does the checkout.
                         const button = document.createElement('button');
                         button.type = 'button';          // so it does not submit the checkout form
@@ -251,8 +251,8 @@
                         button.addEventListener('click', async () => {
                             // Grey out the button while waiting, so one checkout cannot be sent twice.
                             button.disabled = true;
-                            // The member on this row (each row can be a different member when only a barcode was typed).
-                            const saved = await checkOut(hold.barcode, hold.username);
+                            // The member on this row (each row can be a different member when only a copy ID was typed).
+                            const saved = await checkOut(hold.copyId, hold.username);
                             if (saved) {
                                 // The hold is now Completed, so reload the list (it drops out).
                                 showReadyHolds();
@@ -264,9 +264,9 @@
                     }
                     // textContent keeps titles and names with "<" or "&" from being read as HTML.
                     // The member is named when the list is not already about one member;
-                    // the barcode is shown when a copy can be handed over.
+                    // the copy ID is shown when a copy can be handed over.
                     const who = data.mode === 'member' ? '' : hold.memberName + ' (' + hold.username + '): ';
-                    const copyText = hold.barcode ? ' [' + hold.barcode + ']' : '';
+                    const copyText = hold.copyId ? ' [copy #' + hold.copyId + ']' : '';
                     item.append(who + hold.title + copyText + ' (' + holdNote(hold) + ')');
                     readyHoldsList.append(item);
                 }
@@ -281,15 +281,15 @@
         // so the server is not asked after every single letter. Both boxes do this.
         let holdsTimer = null;
         function showHoldsSoon() {
-            notice.hidden = true;                           // an old message (for example the red "Enter a copy barcode or a member.") is out of date once typing starts
+            notice.hidden = true;                           // an old message (for example the red "Enter a copy ID or a member.") is out of date once typing starts
             clearTimeout(holdsTimer);                       // restart the wait
             holdsTimer = setTimeout(showReadyHolds, 400);
         }
         form.member.addEventListener('input', showHoldsSoon);
-        form.barcode.addEventListener('input', showHoldsSoon);
-        // "change" fires when a box loses focus after its text was edited (Tab, or a barcode scanner's Enter).
+        form.copy_id.addEventListener('input', showHoldsSoon);
+        // "change" fires when a box loses focus after its text was edited (Tab or Enter).
         form.member.addEventListener('change', showReadyHolds);
-        form.barcode.addEventListener('change', showReadyHolds);
+        form.copy_id.addEventListener('change', showReadyHolds);
         // The Clear button resets the form, so hide the list too.
         form.addEventListener('reset', clearReadyHolds);
 

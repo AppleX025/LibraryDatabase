@@ -87,7 +87,7 @@ SELECT l.Loan_id,
        l.Member_id,
        ci.Title                                  AS title,
        ci.Item_type                              AS item_type,
-       c.Barcode                                 AS barcode,
+       c.Copy_id                                 AS copy_id,
        l.Loan_type                               AS loan_type,
        DATE(l.Checkout_date)                     AS checkout_date,   -- drop the time of day
        l.Due_date                                AS due_date,
