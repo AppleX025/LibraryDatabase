@@ -80,10 +80,10 @@ app.use('/api', async (req, res, next) => {
 app.use('/', require('./routes/auth'));
 app.use('/api/catalog', require('./routes/catalog'));
 
-// Report data (staff only). Every route in routes/reports.js is reached
-// under /api/reports, for example /api/reports/overdue.
+// Report data (administrators only). Every route in routes/reports.js is reached
+// under /api/reports, for example /api/reports/trends.
 // Data addresses start with /api so they never clash with the report pages in
-// public/reports/ (/reports/overdue.html is the page, /api/reports/overdue is its data).
+// public/reports/ (/reports/trends.html is the page, /api/reports/trends is its data).
 app.use('/api/reports', require('./routes/reports'));
 
 // Circulation: checkout, return, renew and open loans. Every route in

@@ -35,7 +35,7 @@ const STAFF_LINKS  = [
   ['Members',    '/members-admin.html'],
   ['Holds',      '/staff-holds.html'],
   ['My Holds',   '/my-holds.html'],      // staff who also borrow place holds for themselves
-  ['Reports',    '/reports/overdue.html', '/reports/'],
+  ['Reports',    '/reports/trends.html', '/reports/'],
   PROFILE_LINK
 ];
 
@@ -125,7 +125,7 @@ function footerColumns(me) {
                        ['Renew', '/circulation/renew.html'], ['Open loans', '/circulation/open-loans.html']]],
       ['Manage', [['Catalog', '/catalog-admin.html'], ['Members', '/members-admin.html'],
                   ['Fines', '/fines-admin.html'],
-                  ...(me.isAdmin ? [['Reports', '/reports/overdue.html']] : [])]]   // Reports: administrators only
+                  ...(me.isAdmin ? [['Reports', '/reports/trends.html']] : [])]]   // Reports: administrators only
     ];
   }
   return [
@@ -180,7 +180,7 @@ function shortcutTiles(me) {
       ['Fines',      me.isAdmin ? 'Collect or waive fines.' : 'Collect fines.', '/fines-admin.html'],
       ['Members',    me.isAdmin ? 'Find and edit member accounts.' : 'Look up member accounts.', '/members-admin.html'],
       // Reports are for administrators only
-      ...(me.isAdmin ? [['Reports', 'Overdue loans, fines, borrowing.', '/reports/overdue.html']] : [])
+      ...(me.isAdmin ? [['Reports', 'Trends, collection, fines, demand.', '/reports/trends.html']] : [])
     ];
   }
   return [

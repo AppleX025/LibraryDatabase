@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Collection Use Report</title>
+    <!-- The shared look for all report pages (header, card, table). -->
+    <link rel="stylesheet" href="/reports/reports.css">
+<!-- The shared look (colors, header, footer, filter bar, tiles). Loaded last so it overrides the older rules above. -->
+<link rel="stylesheet" href="/theme.css">
+</head>
+<body data-access="admin">
+    <!-- Top bar. The Login link or Log out button is added inside <span id="authLink"> by auth-nav.js. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Collection use</h1>
+        <!-- The business question this report answers, in plain words -->
+        <p class="question">Which parts of the collection earn their shelf space, and which titles sit idle?</p>
+
+        <!-- Links between the four reports; the open one is marked "active" -->
+        <nav class="report-tabs" aria-label="Reports">
+            <a href="/reports/trends.html">Borrowing trends</a>
+            <a href="/reports/collection.html" class="active" aria-current="page">Collection use</a>
+            <a href="/reports/late-fines.html">Late returns &amp; fines</a>
+            <a href="/reports/demand.html">Demand & holds</a>
+        </nav>
+
+        <!-- The filter bar. reports.js draws the fields inside this form. -->
+        <form id="filters" class="filters" aria-label="Report filters"></form>
+        <!-- "Loading..." or an error message (for example when the From date is after the To date) -->
+        <p id="status" class="muted" role="status"></p>
+
+        <!-- The numbers that matter most, one box each -->
+        <div id="tiles" class="tiles"></div>
+
+        <!-- CHART SPOT: the chart is drawn here from the "report-loaded" event
+             (see the comment at the top of reports.js). -->
+        <section class="panel chart-slot" id="chartArea" aria-label="Chart"></section>
+
+        <!-- The tables. reports.js fills this in. -->
+        <div id="tables"></div>
+    </main>
+
+    <script src="/reports/reports.js"></script>
+    <script>
+        initReport({
+            endpoint: 'collection',
+            showMemberType: false,
+            tiles: [
+                { label: 'Titles owned',        value: (s) => fmt.num(s.titles) },
+                { label: 'Copies in circulation', value: (s) => fmt.num(s.circulating_copies) },
+                { label: 'Loans in the period', value: (s) => fmt.num(s.loans) },
+                { label: 'Loans per copy',      value: (s) => fmt.dec(s.loans_per_copy) },
+                { label: 'Copies out right now', value: (s) => fmt.pct(s.in_use_now_pct) },
+                { label: 'Idle titles',         value: (s) => fmt.num(s.idle_titles),
+                  hint: (s) => (s.idle_titles_pct === null ? '' : fmt.pct(s.idle_titles_pct) + ' of titles, no loans') }
+            ],
+            tables: [
+                { title: 'Use by item category', rows: (d) => d.tables.byType,
+                  columns: [
+                    { head: 'Category', value: (r) => r.label },
+                    { head: 'Titles', value: (r) => fmt.num(r.titles), num: true },
+                    { head: 'Copies', value: (r) => fmt.num(r.copies), num: true },
+                    { head: 'In circulation', value: (r) => fmt.num(r.circulating), num: true },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Loans per copy', value: (r) => fmt.dec(r.loans_per_copy), num: true },
+                    { head: 'Out now', value: (r) => fmt.num(r.on_loan_now), num: true },
+                    { head: 'Share out now', value: (r) => fmt.pct(r.in_use_pct), num: true }
+                  ] },
+                { title: 'Most used titles (loans per copy)', rows: (d) => d.tables.mostUsed,
+                  columns: [
+                    { head: 'Title', value: (r) => r.title },
+                    { head: 'Category', value: (r) => r.item_type },
+                    { head: 'Copies', value: (r) => fmt.num(r.copies), num: true },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Loans per copy', value: (r) => fmt.dec(r.loans_per_copy), num: true }
+                  ] },
+                { title: 'Idle titles (no loans in the period)',
+                  note: 'Candidates to move, promote or stop buying more of. The list shows the 15 with the most copies.',
+                  rows: (d) => d.tables.idle, empty: 'Every title was borrowed in this period.',
+                  columns: [
+                    { head: 'Title', value: (r) => r.title },
+                    { head: 'Category', value: (r) => r.item_type },
+                    { head: 'Copies', value: (r) => fmt.num(r.copies), num: true }
+                  ] }
+            ]
+        });
+    </script>
+    <!-- Menu, footer and the page guard (only an administrator may stay on this page) -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

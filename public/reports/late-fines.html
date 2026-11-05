@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Late Returns and Fines Report</title>
+    <!-- The shared look for all report pages (header, card, table). -->
+    <link rel="stylesheet" href="/reports/reports.css">
+<!-- The shared look (colors, header, footer, filter bar, tiles). Loaded last so it overrides the older rules above. -->
+<link rel="stylesheet" href="/theme.css">
+</head>
+<body data-access="admin">
+    <!-- Top bar. The Login link or Log out button is added inside <span id="authLink"> by auth-nav.js. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Late returns &amp; fines</h1>
+        <!-- The business question this report answers, in plain words -->
+        <p class="question">How often are items returned late, who and what is involved, and how much of the fine money do we actually collect?</p>
+
+        <!-- Links between the four reports; the open one is marked "active" -->
+        <nav class="report-tabs" aria-label="Reports">
+            <a href="/reports/trends.html">Borrowing trends</a>
+            <a href="/reports/collection.html">Collection use</a>
+            <a href="/reports/late-fines.html" class="active" aria-current="page">Late returns &amp; fines</a>
+            <a href="/reports/demand.html">Demand & holds</a>
+        </nav>
+
+        <!-- The filter bar. reports.js draws the fields inside this form. -->
+        <form id="filters" class="filters" aria-label="Report filters"></form>
+        <!-- "Loading..." or an error message (for example when the From date is after the To date) -->
+        <p id="status" class="muted" role="status"></p>
+
+        <!-- The numbers that matter most, one box each -->
+        <div id="tiles" class="tiles"></div>
+
+        <!-- CHART SPOT: the chart is drawn here from the "report-loaded" event
+             (see the comment at the top of reports.js). -->
+        <section class="panel chart-slot" id="chartArea" aria-label="Chart"></section>
+
+        <!-- The tables. reports.js fills this in. -->
+        <div id="tables"></div>
+    </main>
+
+    <script src="/reports/reports.js"></script>
+    <script>
+        initReport({
+            endpoint: 'late-fines',
+            showMemberType: true,
+            tiles: [
+                { label: 'Late return rate',   value: (s) => fmt.pct(s.late_rate_pct),
+                  hint: (s) => fmt.num(s.late_returns) + ' of ' + fmt.num(s.returned) + ' returns' },
+                { label: 'Average days late',  value: (s) => fmt.dec(s.avg_days_late) },
+                { label: 'Overdue right now',  value: (s) => fmt.num(s.overdue_now) },
+                { label: 'Fines assessed',     value: (s) => fmt.money(s.fines_assessed) },
+                { label: 'Fines collected',    value: (s) => fmt.money(s.fines_collected),
+                  hint: (s) => (s.collection_rate_pct === null ? '' : fmt.pct(s.collection_rate_pct) + ' collected') },
+                { label: 'Fines unpaid',       value: (s) => fmt.money(s.fines_unpaid),
+                  hint: (s) => fmt.num(s.fines_waived) + ' waived' }
+            ],
+            tables: [
+                { title: 'Late returns by item category', rows: (d) => d.tables.lateByType,
+                  columns: [
+                    { head: 'Category', value: (r) => r.label },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Returned', value: (r) => fmt.num(r.returned), num: true },
+                    { head: 'Late', value: (r) => fmt.num(r.late), num: true },
+                    { head: 'Late rate', value: (r) => fmt.pct(r.late_rate_pct), num: true },
+                    { head: 'Avg days late', value: (r) => fmt.dec(r.avg_days_late), num: true },
+                    { head: 'Overdue now', value: (r) => fmt.num(r.overdue_now), num: true }
+                  ] },
+                { title: 'Late returns by membership type', rows: (d) => d.tables.lateByMemberType,
+                  columns: [
+                    { head: 'Membership type', value: (r) => r.label },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Returned', value: (r) => fmt.num(r.returned), num: true },
+                    { head: 'Late', value: (r) => fmt.num(r.late), num: true },
+                    { head: 'Late rate', value: (r) => fmt.pct(r.late_rate_pct), num: true },
+                    { head: 'Avg days late', value: (r) => fmt.dec(r.avg_days_late), num: true },
+                    { head: 'Overdue now', value: (r) => fmt.num(r.overdue_now), num: true }
+                  ] },
+                { title: 'Fines by item category', rows: (d) => d.tables.finesByType,
+                  columns: [
+                    { head: 'Category', value: (r) => r.label },
+                    { head: 'Fines', value: (r) => fmt.num(r.fines), num: true },
+                    { head: 'Assessed', value: (r) => fmt.money(r.assessed), num: true },
+                    { head: 'Collected', value: (r) => fmt.money(r.collected), num: true },
+                    { head: 'Unpaid', value: (r) => fmt.money(r.unpaid), num: true },
+                    { head: 'Waived', value: (r) => fmt.num(r.waived), num: true },
+                    { head: 'Collection rate', value: (r) => fmt.pct(r.collection_rate_pct), num: true }
+                  ] },
+                { title: 'Fines by membership type', rows: (d) => d.tables.finesByMemberType,
+                  columns: [
+                    { head: 'Membership type', value: (r) => r.label },
+                    { head: 'Fines', value: (r) => fmt.num(r.fines), num: true },
+                    { head: 'Assessed', value: (r) => fmt.money(r.assessed), num: true },
+                    { head: 'Collected', value: (r) => fmt.money(r.collected), num: true },
+                    { head: 'Unpaid', value: (r) => fmt.money(r.unpaid), num: true },
+                    { head: 'Waived', value: (r) => fmt.num(r.waived), num: true },
+                    { head: 'Collection rate', value: (r) => fmt.pct(r.collection_rate_pct), num: true }
+                  ] },
+                { title: 'Members with repeat problems',
+                  note: 'Late returns plus items still overdue, and what each member owes now.',
+                  rows: (d) => d.tables.repeatMembers, empty: 'No member has more than one late return or overdue item.',
+                  columns: [
+                    { head: 'Username', value: (r) => r.username },
+                    { head: 'Name', value: (r) => r.name },
+                    { head: 'Membership', value: (r) => r.member_type },
+                    { head: 'Late returns', value: (r) => fmt.num(r.late_returns), num: true },
+                    { head: 'Overdue now', value: (r) => fmt.num(r.overdue_now), num: true },
+                    { head: 'Owes', value: (r) => fmt.money(r.owes), num: true }
+                  ] }
+            ]
+        });
+    </script>
+    <!-- Menu, footer and the page guard (only an administrator may stay on this page) -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

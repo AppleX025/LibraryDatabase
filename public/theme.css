@@ -443,3 +443,120 @@ td .confirm-box button {
   font-size: 14px;
   min-height: 36px;
 }
+
+/* =====================================================================
+   Management report pages (public/reports/*.html, drawn by reports.js)
+   ===================================================================== */
+
+/* The business question under the page title */
+.question {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* The filter bar: fields in a row that wraps on a narrow screen */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 8px;
+}
+
+.filters .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.filters .field.buttons {
+  flex-direction: row;
+  gap: 8px;
+  min-width: 0;
+}
+
+.filters label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.filters input,
+.filters select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+/* "Loading..." / error line under the filters */
+#status {
+  margin: 8px 0;
+  min-height: 1.4em;
+  font-weight: 600;
+}
+
+#status.error {
+  color: #a12525;
+}
+
+/* The row of KPI boxes */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.tile-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.tile-value {
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--brand);
+}
+
+.tile-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Space between the cards on the report pages */
+#tables .panel,
+.chart-slot {
+  margin-top: 16px;
+}
+
+/* The chart spot is empty until a chart is drawn in it */
+.chart-slot:empty {
+  display: none;
+}
+
+#tables .panel h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}

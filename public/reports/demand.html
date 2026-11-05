@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Demand and Holds Report</title>
+    <!-- The shared look for all report pages (header, card, table). -->
+    <link rel="stylesheet" href="/reports/reports.css">
+<!-- The shared look (colors, header, footer, filter bar, tiles). Loaded last so it overrides the older rules above. -->
+<link rel="stylesheet" href="/theme.css">
+</head>
+<body data-access="admin">
+    <!-- Top bar. The Login link or Log out button is added inside <span id="authLink"> by auth-nav.js. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Demand &amp; holds</h1>
+        <!-- The business question this report answers, in plain words -->
+        <p class="question">Which titles have more people waiting than copies, and do holds turn into loans?</p>
+
+        <!-- Links between the four reports; the open one is marked "active" -->
+        <nav class="report-tabs" aria-label="Reports">
+            <a href="/reports/trends.html">Borrowing trends</a>
+            <a href="/reports/collection.html">Collection use</a>
+            <a href="/reports/late-fines.html">Late returns &amp; fines</a>
+            <a href="/reports/demand.html" class="active" aria-current="page">Demand & holds</a>
+        </nav>
+
+        <!-- The filter bar. reports.js draws the fields inside this form. -->
+        <form id="filters" class="filters" aria-label="Report filters"></form>
+        <!-- "Loading..." or an error message (for example when the From date is after the To date) -->
+        <p id="status" class="muted" role="status"></p>
+
+        <!-- The numbers that matter most, one box each -->
+        <div id="tiles" class="tiles"></div>
+
+        <!-- CHART SPOT: the chart is drawn here from the "report-loaded" event
+             (see the comment at the top of reports.js). -->
+        <section class="panel chart-slot" id="chartArea" aria-label="Chart"></section>
+
+        <!-- The tables. reports.js fills this in. -->
+        <div id="tables"></div>
+    </main>
+
+    <script src="/reports/reports.js"></script>
+    <script>
+        initReport({
+            endpoint: 'demand',
+            showMemberType: false,
+            fromLabel: 'Holds placed from',
+            toLabel: 'Holds placed to',
+            tiles: [
+                { label: 'Holds in the period',  value: (s) => fmt.num(s.holds) },
+                { label: 'Open holds now',       value: (s) => fmt.num(s.open_holds) },
+                { label: 'Pickup rate',          value: (s) => fmt.pct(s.pickup_rate_pct), hint: () => 'finished holds that became a loan' },
+                { label: 'Expired or cancelled', value: (s) => fmt.pct(s.expired_or_cancelled_pct), hint: () => 'of finished holds' },
+                { label: 'Titles to buy more of', value: (s) => fmt.num(s.titles_to_buy_more) }
+            ],
+            tables: [
+                { title: 'How holds ended', rows: (d) => d.tables.outcomes,
+                  columns: [
+                    { head: 'Status', value: (r) => r.label },
+                    { head: 'Holds', value: (r) => fmt.num(r.holds), num: true }
+                  ] },
+                { title: 'Titles with holds', note: 'Sorted by waiting people per copy. "Buy another copy" means more people are waiting than copies exist.',
+                  rows: (d) => d.tables.items, empty: 'No holds for these filters.',
+                  columns: [
+                    { head: 'Title', value: (r) => r.title },
+                    { head: 'Category', value: (r) => r.item_type },
+                    { head: 'Copies', value: (r) => fmt.num(r.copies), num: true },
+                    { head: 'Open holds', value: (r) => fmt.num(r.open_holds), num: true },
+                    { head: 'Holds per copy', value: (r) => fmt.dec(r.holds_per_copy), num: true },
+                    { head: 'Holds in period', value: (r) => fmt.num(r.holds_in_period), num: true },
+                    { head: 'Loans in period', value: (r) => fmt.num(r.loans_in_period), num: true },
+                    { head: 'Suggested action', value: (r) => r.action }
+                  ] }
+            ]
+        });
+    </script>
+    <!-- Menu, footer and the page guard (only an administrator may stay on this page) -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

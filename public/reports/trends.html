@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Makes the page fit the width of a phone screen instead of shrinking -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Borrowing Trends Report</title>
+    <!-- The shared look for all report pages (header, card, table). -->
+    <link rel="stylesheet" href="/reports/reports.css">
+<!-- The shared look (colors, header, footer, filter bar, tiles). Loaded last so it overrides the older rules above. -->
+<link rel="stylesheet" href="/theme.css">
+</head>
+<body data-access="admin">
+    <!-- Top bar. The Login link or Log out button is added inside <span id="authLink"> by auth-nav.js. -->
+    <header>
+        <div>
+            <strong>Library Database</strong>
+            <span> / Reports</span>
+        </div>
+        <nav>
+            <span id="authLink"></span>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Borrowing trends</h1>
+        <!-- The business question this report answers, in plain words -->
+        <p class="question">Is borrowing growing or shrinking, and who and what is driving it?</p>
+
+        <!-- Links between the four reports; the open one is marked "active" -->
+        <nav class="report-tabs" aria-label="Reports">
+            <a href="/reports/trends.html" class="active" aria-current="page">Borrowing trends</a>
+            <a href="/reports/collection.html">Collection use</a>
+            <a href="/reports/late-fines.html">Late returns &amp; fines</a>
+            <a href="/reports/demand.html">Demand & holds</a>
+        </nav>
+
+        <!-- The filter bar. reports.js draws the fields inside this form. -->
+        <form id="filters" class="filters" aria-label="Report filters"></form>
+        <!-- "Loading..." or an error message (for example when the From date is after the To date) -->
+        <p id="status" class="muted" role="status"></p>
+
+        <!-- The numbers that matter most, one box each -->
+        <div id="tiles" class="tiles"></div>
+        <p class="muted">The newest month may still be in progress, so its numbers can look low.</p>
+
+        <!-- CHART SPOT: the chart is drawn here from the "report-loaded" event
+             (see the comment at the top of reports.js). -->
+        <section class="panel chart-slot" id="chartArea" aria-label="Chart"></section>
+
+        <!-- The tables. reports.js fills this in. -->
+        <div id="tables"></div>
+    </main>
+
+    <script src="/reports/reports.js"></script>
+    <script>
+        initReport({
+            endpoint: 'trends',
+            showMemberType: true,
+            tiles: [
+                { label: 'Total loans',        value: (s) => fmt.num(s.total_loans) },
+                { label: 'Active borrowers',   value: (s) => fmt.num(s.borrowers) },
+                { label: 'Loans per borrower', value: (s) => fmt.dec(s.loans_per_borrower) },
+                { label: 'Average days kept',  value: (s) => fmt.dec(s.avg_days_kept), hint: () => 'returned items only' },
+                { label: 'Busiest month',      value: (s) => fmt.text(s.busiest_month),
+                  hint: (s) => (s.busiest_month_loans === null ? '' : s.busiest_month_loans + ' loans') },
+                { label: 'Latest month vs. the one before', value: (s) => fmt.change(s.latest_month_change_pct),
+                  hint: (s) => (s.latest_month ? s.latest_month + (s.latest_month_partial ? ' (month not over yet)' : '') : '') }
+            ],
+            tables: [
+                { title: 'Loans by month', rows: (d) => d.tables.months,
+                  columns: [
+                    { head: 'Month', value: (r) => r.month },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Borrowers', value: (r) => fmt.num(r.borrowers), num: true },
+                    { head: 'Change vs. previous month', value: (r) => fmt.change(r.change_pct), num: true },
+                    { head: 'Late returns', value: (r) => fmt.num(r.late_returns), num: true },
+                    { head: 'Late rate', value: (r) => fmt.pct(r.late_rate_pct), num: true }
+                  ] },
+                { title: 'Loans by item category', rows: (d) => d.tables.byType,
+                  columns: [
+                    { head: 'Category', value: (r) => r.label },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Share of all loans', value: (r) => fmt.pct(r.share_pct), num: true }
+                  ] },
+                { title: 'Loans by membership type', rows: (d) => d.tables.byMemberType,
+                  columns: [
+                    { head: 'Membership type', value: (r) => r.label },
+                    { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
+                    { head: 'Borrowers', value: (r) => fmt.num(r.borrowers), num: true },
+                    { head: 'Share of all loans', value: (r) => fmt.pct(r.share_pct), num: true }
+                  ] }
+            ]
+        });
+    </script>
+    <!-- Menu, footer and the page guard (only an administrator may stay on this page) -->
+    <script src="/auth-nav.js"></script>
+</body>
+</html>

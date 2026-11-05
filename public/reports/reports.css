@@ -1,7 +1,7 @@
 /* =====================================================================
    reports.css
    One shared stylesheet for the staff report pages in public/reports/
-   (overdue.html, fines.html, borrowed.html).
+   (trends.html, collection.html, late-fines.html, demand.html).
    Uses the same colors, header, cards and tables as catalog-admin.css.
 
    Link it from each report page with:
