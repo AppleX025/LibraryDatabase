@@ -108,21 +108,21 @@ function listRow(text, onDelete) {
 // the server marks the item and its copies as deleted and keeps the rows. It refuses (and says why)
 // while a copy is on loan.
 async function removeItem(id, title, button) {
-  if (!(await askInline(button, `Delete "${title}" and its copies? They disappear from the app.`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete "${title}"?`, 'Yes, delete'))) return;
   try { const r=await api(`/items/${id}`,{method:'DELETE'});await loadCatalog();notify(r.message); }catch(e){notify(e.message,true);}
 }
 // removeCopy(id, button): deletes (hides) one copy. The server refuses while it is on loan or set aside for a hold.
 async function removeCopy(id, button) {
-  if (!(await askInline(button, `Delete copy #${id}? It disappears from the app.`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete copy #${id}?`, 'Yes, delete'))) return;
   try { const r=await api(`/copies/${id}`,{method:'DELETE'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
 }
 // removePerson(kind, id, name, button): deletes (hides) a publisher or an author no visible item uses ('publishers' or 'authors').
 async function removePerson(kind, id, name, button) {
-  if (!(await askInline(button, `Delete "${name}"? It disappears from the app.`, 'Yes, delete'))) return;
+  if (!(await askInline(button, `Delete "${name}"?`, 'Yes, delete'))) return;
   try { const r=await api(`/${kind}/${id}`,{method:'DELETE'});await loadLists();notify(r.message); }catch(e){notify(e.message,true);}
 }
 async function withdraw(id, button) {
-  if (!(await askInline(button, 'Withdraw this copy? The record and loan history will be kept.', 'Yes, withdraw'))) return;
+  if (!(await askInline(button, 'Withdraw this copy?', 'Yes, withdraw'))) return;
   try { const r=await api(`/copies/${id}/withdraw`,{method:'PATCH'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
 }
 $('itemType').addEventListener('change',()=>renderExtras());

@@ -257,9 +257,3 @@ th {
     padding: 16px;
   }
 }
-/* The in-page "are you sure?" strip shown inside a row before placing a hold */
-.confirm-strip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; background: #fff8e1; border: 2px solid #f0c36a; border-radius: 12px; font-weight: 600; }
-/* The "Cancel" button looks lighter than the main button */
-.confirm-strip .secondary { background: #ffffff; color: #1e40af; border: 1px solid #1e40af; }
-/* Used to hide the original Place hold button while the strip is open */
-.is-hidden { display: none !important; }

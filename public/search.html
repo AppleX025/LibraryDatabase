@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/search.css">
 <!-- The shared look (colors, header, footer). Loaded last so it overrides the older rules above. -->
 <link rel="stylesheet" href="/theme.css">
+<!-- The shared in-page "are you sure?" question (askInline) -->
+<script src="/inline-confirm.js"></script>
 </head>
 <body>
   <header>
@@ -112,49 +114,20 @@
       }
     }
 
-    // Shows the "are you sure?" strip in place of the Place hold button
+    // Asks "Place a hold on ...?" in place of the Place hold button, then places the hold on Yes.
+    // The question box is the shared one (inline-confirm.js, styled in theme.css), so it looks and
+    // works the same as the questions on every other page.
     async function askToHold(cell, holdBtn, item) {
       // Visitors who are not logged in go to the login page instead
       const meResponse = await fetch('/me');
       const me = await meResponse.json();
       if (!me.loggedIn) { location.href = '/login.html'; return; }
 
-      // Close any other strip that is already open, so only one shows at a time
-      document.querySelectorAll('.confirm-strip').forEach(s => {
-        s.previousElementSibling.classList.remove('is-hidden');
-        s.remove();
-      });
-
-      // Hide the original button and build the strip
-      holdBtn.classList.add('is-hidden');
-      const strip = document.createElement('span');
-      strip.className = 'confirm-strip';
-      strip.setAttribute('role', 'group');
-      strip.setAttribute('aria-label', 'Confirm hold');
-
-      const question = document.createElement('span');
-      question.textContent = 'Place a hold on "' + item.Title + '"?';
-
-      const yesBtn = document.createElement('button');
-      yesBtn.textContent = 'Yes, place hold';
-      yesBtn.addEventListener('click', () => {
-        strip.remove();
-        holdBtn.classList.remove('is-hidden');
+      // askInline hides the button, shows the question with Yes / Cancel, and gives back
+      // true (Yes) or false (Cancel). The button comes back by itself afterwards.
+      if (await askInline(holdBtn, 'Place a hold on "' + item.Title + '"?', 'Yes, place hold')) {
         placeHold(item.Item_id);
-      });
-
-      const noBtn = document.createElement('button');
-      noBtn.textContent = 'Cancel';
-      noBtn.className = 'secondary';
-      noBtn.addEventListener('click', () => {
-        strip.remove();
-        holdBtn.classList.remove('is-hidden');
-      });
-
-      strip.appendChild(question);
-      strip.appendChild(yesBtn);
-      strip.appendChild(noBtn);
-      cell.appendChild(strip);
+      }
     }
 
     // Asks the server to place a hold on one item

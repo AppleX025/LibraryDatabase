@@ -108,7 +108,7 @@ function openEdit(m) {
 
 // Deletes (hides) one account after an in-page question (inline-confirm.js), then refreshes the list.
 async function deleteMember(m, button) {
-  if (!(await askInline(button, 'Delete ' + m.Username + '? The account disappears from the app and cannot log in.', 'Yes, delete'))) return;
+  if (!(await askInline(button, 'Delete ' + m.Username + '?', 'Yes, delete'))) return;
   const { res, data } = await api('/' + m.Member_id, 'DELETE');
   say(data.message, res.ok);
   if (res.ok) loadMembers({ keepMessage: true });
