@@ -35,8 +35,9 @@ function renderSelects() {
   const auth = $('authorSelect'); const selected = [...auth.selectedOptions].map(o=>o.value); auth.replaceChildren();
   authors.forEach(a=>auth.append(option(a.Author_id,`${a.Last_name}, ${a.First_name}`)));
   [...auth.options].forEach(o=>o.selected=selected.includes(o.value));
-  $('publisherList').replaceChildren(...publishers.map(p=>el('li',p.Name)));
-  $('authorList').replaceChildren(...authors.map(a=>el('li',`${a.First_name} ${a.Last_name}`)));
+  // Each name gets a Delete button (the server only allows it when nothing uses that publisher / author).
+  $('publisherList').replaceChildren(...publishers.map(p=>listRow(p.Name,btn=>removePerson('publishers',p.Publisher_id,p.Name,btn))));
+  $('authorList').replaceChildren(...authors.map(a=>listRow(`${a.First_name} ${a.Last_name}`,btn=>removePerson('authors',a.Author_id,`${a.First_name} ${a.Last_name}`,btn))));
 }
 async function loadLists() { [publishers,authors] = await Promise.all([api('/publishers'),api('/authors')]); renderSelects(); }
 function renderCatalog() {
@@ -45,7 +46,10 @@ function renderCatalog() {
   if (!rows.length) { const tr=el('tr'); const td=el('td','No matching items.');td.colSpan=8;tr.append(td);body.append(tr);return; }
   rows.forEach(r=>{
     const tr=el('tr'); [r.Item_id,r.Title,r.Item_type,r.Publisher_name||'—',r.Total_copies,r.Available_copies,r.Withdrawn_copies].forEach(v=>tr.append(el('td',v)));
-    const td=el('td');const b=el('button',canEdit?'Edit':'View copies');b.type='button';b.addEventListener('click',()=>editItem(r.Item_id));td.append(b);tr.append(td);body.append(tr);
+    const td=el('td');const b=el('button',canEdit?'Edit':'View copies');b.type='button';b.addEventListener('click',()=>editItem(r.Item_id));td.append(b);
+    // Administrators can also delete an item (only works when it has no copies or holds; the server says why if not).
+    if(canEdit){const d=el('button','Delete');d.type='button';d.className='secondary';d.addEventListener('click',()=>removeItem(r.Item_id,r.Title,d));td.append(' ',d);}
+    tr.append(td);body.append(tr);
   });
 }
 async function loadCatalog() { catalog = await api('/items'); renderCatalog(); }
@@ -84,10 +88,38 @@ function renderCopies(copies) {
   if (!copies.length) {const tr=el('tr');const td=el('td','No copies yet.');td.colSpan=5;tr.append(td);body.append(tr);}
   copies.forEach(c=>{
     const tr=el('tr');[c.Copy_id,c.Condition,c.Shelf_location||'—',c.Status].forEach(v=>tr.append(el('td',v)));
-    const td=el('td');if(canEdit && c.Status==='available') {const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b);}else td.textContent='—';tr.append(td);body.append(tr);
+    const td=el('td');
+    if(canEdit){
+      // Withdraw keeps the record and its history (only for an available copy).
+      if(c.Status==='available'){const b=el('button','Withdraw');b.type='button';b.addEventListener('click',()=>withdraw(c.Copy_id,b));td.append(b,' ');}
+      // Delete removes the copy for good, but only if it was never lent (the server checks).
+      const d=el('button','Delete');d.type='button';d.className='secondary';d.addEventListener('click',()=>removeCopy(c.Copy_id,d));td.append(d);
+    } else td.textContent='—';
+    tr.append(td);body.append(tr);
   });
 }
 // withdraw(id, button): asks inside the page first (askInline, inline-confirm.js), then withdraws the copy.
+// listRow(text, onDelete): one <li> with a name and a small Delete button.
+function listRow(text, onDelete) {
+  const li=el('li',text+' ');const b=el('button','Delete');b.type='button';b.className='secondary';
+  b.addEventListener('click',()=>onDelete(b));li.append(b);return li;
+}
+// removeItem(id, title, button): asks inside the page, then deletes the item. The server refuses
+// (and says why) when the item still has copies or holds.
+async function removeItem(id, title, button) {
+  if (!(await askInline(button, `Delete "${title}" for good?`, 'Yes, delete'))) return;
+  try { const r=await api(`/items/${id}`,{method:'DELETE'});await loadCatalog();notify(r.message); }catch(e){notify(e.message,true);}
+}
+// removeCopy(id, button): deletes a copy that was never lent (a copy with history can only be withdrawn).
+async function removeCopy(id, button) {
+  if (!(await askInline(button, `Delete copy #${id} for good?`, 'Yes, delete'))) return;
+  try { const r=await api(`/copies/${id}`,{method:'DELETE'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
+}
+// removePerson(kind, id, name, button): deletes a publisher or an author nobody uses ('publishers' or 'authors').
+async function removePerson(kind, id, name, button) {
+  if (!(await askInline(button, `Delete "${name}"?`, 'Yes, delete'))) return;
+  try { const r=await api(`/${kind}/${id}`,{method:'DELETE'});await loadLists();notify(r.message); }catch(e){notify(e.message,true);}
+}
 async function withdraw(id, button) {
   if (!(await askInline(button, 'Withdraw this copy? The record and loan history will be kept.', 'Yes, withdraw'))) return;
   try { const r=await api(`/copies/${id}/withdraw`,{method:'PATCH'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}

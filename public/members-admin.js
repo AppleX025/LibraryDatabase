@@ -72,7 +72,13 @@ async function loadMembers({ keepMessage = false } = {}) {
     toggle.className = 'secondary';
     toggle.addEventListener('click', () => setActive(m, !m.Is_active));
 
-    actions.append(edit, toggle);
+    // Delete only works for an account with no loan or hold history (the server checks and says why if not).
+    const remove = document.createElement('button');
+    remove.textContent = 'Delete';
+    remove.className = 'secondary';
+    remove.addEventListener('click', () => deleteMember(m, remove));
+    if (m.Type_name === 'Staff') remove.disabled = true;   // linked to a staff account
+    actions.append(edit, toggle, remove);
     tr.appendChild(actions);
     rows.appendChild(tr);
   }
@@ -98,6 +104,14 @@ function openEdit(m) {
   document.getElementById('zip').value = m.Zip_code || '';
   editPanel.hidden = false;
   editPanel.scrollIntoView();
+}
+
+// Deletes one account for good after an in-page question (inline-confirm.js), then refreshes the list.
+async function deleteMember(m, button) {
+  if (!(await askInline(button, 'Delete ' + m.Username + ' for good?', 'Yes, delete'))) return;
+  const { res, data } = await api('/' + m.Member_id, 'DELETE');
+  say(data.message, res.ok);
+  if (res.ok) loadMembers({ keepMessage: true });
 }
 
 // Deactivates or reactivates one account, then refreshes the list.

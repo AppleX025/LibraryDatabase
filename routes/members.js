@@ -152,7 +152,7 @@ router.put('/:id', isAdmin, async (req, res) => {
 
 // PATCH /api/members/:id/active
 // Deactivates or reactivates one account. The page sends { active: true } or { active: false }.
-// Members are never deleted: loans and fines refer to them, so the history must stay.
+// Deactivating keeps the account and its history (loans and fines refer to the member).
 // Login already refuses accounts where Is_active is off.
 router.patch('/:id/active', isAdmin, async (req, res) => {
   const id = parseMemberId(req.params.id);
@@ -171,6 +171,45 @@ router.patch('/:id/active', isAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Could not change the account status.' });
+  }
+});
+
+// DELETE /api/members/:id   (administrators only)
+// Removes a member account that has no history: no loans, no holds and no link to a staff account.
+// Someone who has borrowed is never deleted, because loans and fines refer to them and the history
+// must stay: deactivate that account instead (the PATCH route above).
+// Their notifications are only messages to them, so those are removed with the account.
+router.delete('/:id', isAdmin, async (req, res) => {
+  const id = parseMemberId(req.params.id);
+  if (id === null) return res.status(400).json({ message: 'The member id must be a positive whole number.' });
+
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+    // FOR UPDATE locks the member's row while we check, so a checkout cannot sneak in meanwhile.
+    const [[member]] = await conn.query('SELECT Member_id, Staff_id FROM Member WHERE Member_id = ? FOR UPDATE', [id]);
+    if (!member) { await conn.rollback(); return res.status(404).json({ message: 'Member not found.' }); }
+    if (member.Staff_id !== null) {
+      await conn.rollback();
+      return res.status(400).json({ message: 'This member is linked to a staff account, so it cannot be deleted here.' });
+    }
+    const [[loans]] = await conn.query('SELECT COUNT(*) AS n FROM Loan WHERE Member_id = ?', [id]);
+    const [[holds]] = await conn.query('SELECT COUNT(*) AS n FROM Hold WHERE Member_id = ?', [id]);
+    if (loans.n > 0 || holds.n > 0) {
+      await conn.rollback();
+      return res.status(400).json({ message: 'This member has loan or hold history, so the account cannot be deleted. Deactivate it instead: the history is kept.' });
+    }
+    await conn.query('DELETE FROM Notification WHERE Member_id = ?', [id]);
+    await conn.query('DELETE FROM Member WHERE Member_id = ?', [id]);
+    await conn.commit();
+    res.json({ message: 'Member deleted.' });
+  } catch (err) {
+    if (conn) await conn.rollback();
+    console.error(err);
+    res.status(500).json({ message: 'Could not delete the member.' });
+  } finally {
+    if (conn) conn.release();
   }
 });
 

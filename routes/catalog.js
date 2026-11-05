@@ -212,4 +212,85 @@ router.patch('/copies/:id/withdraw', async (req, res) => {
   } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
   finally { if (conn) conn.release(); }
 });
+
+// ---------------------------------------------------------------------
+// Deleting (administrators only: every non-GET request is admin-only, see router.use above)
+// ---------------------------------------------------------------------
+// The database uses "ON DELETE RESTRICT" everywhere: a row that other rows still depend on can
+// not be removed, so loan, fine and hold history can never be lost by accident. These routes
+// check that first, and answer with a plain message saying what is in the way and what to do
+// instead (Withdraw a copy, or leave the record). Each one deletes at most the one record asked for.
+
+// DELETE /api/catalog/copies/:id
+// Removes one copy that was never lent and is not set aside for a hold (for example one added by
+// mistake). A copy with loan history cannot be deleted: withdraw it instead, the history is kept.
+router.delete('/copies/:id', async (req, res) => {
+  let conn;
+  try {
+    const id = positiveId(req.params.id); if (!id) throw bad('Invalid copy ID.');
+    conn = await db.getConnection(); await conn.beginTransaction();
+    // FOR UPDATE locks the copy's row so nobody can lend it while we decide.
+    const [[copy]] = await conn.execute('SELECT Copy_id FROM Copy WHERE Copy_id = ? FOR UPDATE', [id]);
+    if (!copy) { await conn.rollback(); return res.status(404).json({ message: 'Copy not found.' }); }
+    const [[loan]] = await conn.execute('SELECT Loan_id FROM Loan WHERE Copy_id = ? LIMIT 1', [id]);
+    if (loan) throw bad('This copy has loan history, so it cannot be deleted. Use Withdraw instead: the record and its history are kept.');
+    const [[hold]] = await conn.execute('SELECT Hold_id FROM Hold WHERE Reserved_copy_id = ? LIMIT 1', [id]);
+    if (hold) throw bad('A hold refers to this copy, so it cannot be deleted. Use Withdraw instead.');
+    await conn.execute('DELETE FROM Copy WHERE Copy_id = ?', [id]);
+    await conn.commit(); res.json({ message: 'Copy deleted.' });
+  } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
+  finally { if (conn) conn.release(); }
+});
+
+// DELETE /api/catalog/items/:id
+// Removes a catalog item that has no copies and no holds (for example one entered twice).
+// The author links and the category row (Book, DVD, ...) go with it, in one transaction.
+router.delete('/items/:id', async (req, res) => {
+  let conn;
+  try {
+    const id = positiveId(req.params.id); if (!id) throw bad('Invalid item ID.');
+    conn = await db.getConnection(); await conn.beginTransaction();
+    const [[item]] = await conn.execute('SELECT Item_type FROM CatalogItem WHERE Item_id = ? FOR UPDATE', [id]);
+    if (!item) { await conn.rollback(); return res.status(404).json({ message: 'Item not found.' }); }
+    const [[copy]] = await conn.execute('SELECT COUNT(*) AS n FROM Copy WHERE Item_id = ?', [id]);
+    if (copy.n > 0) throw bad(`This item still has ${copy.n} cop${copy.n === 1 ? 'y' : 'ies'}. Delete the copies first (a copy that was lent can only be withdrawn, not deleted).`);
+    const [[hold]] = await conn.execute('SELECT COUNT(*) AS n FROM Hold WHERE Item_id = ?', [id]);
+    if (hold.n > 0) throw bad('Members have holds on this item, so it cannot be deleted.');
+    // Authors are linked through a separate table for books and research papers only.
+    if (item.Item_type === 'book') await conn.execute('DELETE FROM BookAuthor WHERE Item_id = ?', [id]);
+    if (item.Item_type === 'researchpaper') await conn.execute('DELETE FROM PaperAuthor WHERE Item_id = ?', [id]);
+    // The category row (Book, DVD, ...) must go before the CatalogItem row it points to.
+    // TYPES[...].table is a fixed name from the list at the top of this file, never typed text.
+    await conn.query(`DELETE FROM \`${TYPES[item.Item_type].table}\` WHERE Item_id = ?`, [id]);
+    await conn.execute('DELETE FROM CatalogItem WHERE Item_id = ?', [id]);
+    await conn.commit(); res.json({ message: 'Item deleted.' });
+  } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
+  finally { if (conn) conn.release(); }
+});
+
+// DELETE /api/catalog/publishers/:id  -  only a publisher that no item uses.
+router.delete('/publishers/:id', async (req, res) => {
+  try {
+    const id = positiveId(req.params.id); if (!id) throw bad('Invalid publisher ID.');
+    const [[used]] = await db.execute('SELECT COUNT(*) AS n FROM CatalogItem WHERE Publisher_id = ?', [id]);
+    if (used.n > 0) throw bad(`${used.n} catalog item(s) use this publisher, so it cannot be deleted.`);
+    const [r] = await db.execute('DELETE FROM Publisher WHERE Publisher_id = ?', [id]);
+    if (r.affectedRows === 0) return res.status(404).json({ message: 'Publisher not found.' });
+    res.json({ message: 'Publisher deleted.' });
+  } catch (err) { handleError(res, err); }
+});
+
+// DELETE /api/catalog/authors/:id  -  only an author that no book or research paper uses.
+router.delete('/authors/:id', async (req, res) => {
+  try {
+    const id = positiveId(req.params.id); if (!id) throw bad('Invalid author ID.');
+    const [[books]] = await db.execute('SELECT COUNT(*) AS n FROM BookAuthor WHERE Author_id = ?', [id]);
+    const [[papers]] = await db.execute('SELECT COUNT(*) AS n FROM PaperAuthor WHERE Author_id = ?', [id]);
+    if (books.n + papers.n > 0) throw bad(`${books.n + papers.n} book(s) or paper(s) use this author, so the author cannot be deleted.`);
+    const [r] = await db.execute('DELETE FROM Author WHERE Author_id = ?', [id]);
+    if (r.affectedRows === 0) return res.status(404).json({ message: 'Author not found.' });
+    res.json({ message: 'Author deleted.' });
+  } catch (err) { handleError(res, err); }
+});
+
 module.exports = router;
