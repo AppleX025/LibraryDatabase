@@ -46,7 +46,7 @@ INSERT INTO CatalogItem (Item_type, Title, Publisher_id, Publication_year, Repla
  ('music',     'Abbey Road',                          (SELECT Publisher_id FROM Publisher WHERE Name='Apple Records'), 1969, 14.99),
  ('music',     'Thriller',                            (SELECT Publisher_id FROM Publisher WHERE Name='Epic Records'), 1982, 12.99),
  ('newspaper', 'Houston Chronicle, October 20, 2026', (SELECT Publisher_id FROM Publisher WHERE Name='Houston Chronicle'), 2026, 3.00),
- ('researchpaper', 'A Relational Model of Data for Large Shared Data Banks', (SELECT Publisher_id FROM Publisher WHERE Name='Association for Computing Machinery'), 1970, 25.00);
+ ('researchpaper', 'A Relational Model of Data for Large Shared Data Banks', (SELECT Publisher_id FROM Publisher WHERE Name='Association for Computing Machinery'), 1970, 200.00);
 
 -- Books
 INSERT INTO Book (Item_id, Item_type, Isbn, Genre)

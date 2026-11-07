@@ -317,6 +317,13 @@ router.post('/checkout', isStaff, async (req, res) => {
             return res.status(400).json({ message: err.message });
         }
 
+        // One of the database's own rule triggers (trg_loan_rule_*, see circulation.sql)
+        // refused the loan. The route already checks these rules first, so this only
+        // happens if two checkouts collide. SQLSTATE 45000 is the code our triggers use.
+        if (err.sqlState === '45000') {
+            return res.status(400).json({ message: err.sqlMessage });
+        }
+
         // The database's one-open-loan-per-copy rule caught a checkout that
         // happened at the same moment as this one.
         if (err.code === 'ER_DUP_ENTRY') {
@@ -652,6 +659,11 @@ router.post('/renew', isStaff, async (req, res) => {
 
         if (err instanceof RuleError) {
             return res.status(400).json({ message: err.message });
+        }
+
+        // A renewal rule trigger (trg_loan_rule_renewals) refused the update.
+        if (err.sqlState === '45000') {
+            return res.status(400).json({ message: err.sqlMessage });
         }
 
         console.error('Renew failed:', err);

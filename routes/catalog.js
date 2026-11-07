@@ -79,6 +79,8 @@ function handleError(res, err) {
     const message = /isbn/i.test(err.sqlMessage || '') ? 'That ISBN is already in use.' : /publisher/i.test(err.sqlMessage || '') ? 'That publisher already exists.' : /newspaper/i.test(err.sqlMessage || '') ? 'That newspaper issue already exists.' : /doi/i.test(err.sqlMessage || '') ? 'That DOI is already in use.' : 'This record already exists.';
     return res.status(409).json({ message });
   }
+  // A catalog rule trigger (database/trigger_catalog_rules.sql) refused the change: show its message.
+  if (err.sqlState === '45000') return res.status(400).json({ message: err.sqlMessage });
   if (['ER_NO_REFERENCED_ROW_2','ER_ROW_IS_REFERENCED_2'].includes(err.code)) return res.status(400).json({ message: 'A referenced publisher, author, or item is missing or in use.' });
   if (err.code === 'ER_CHECK_CONSTRAINT_VIOLATED' || err.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD' || err.code === 'WARN_DATA_TRUNCATED') return res.status(400).json({ message: 'The item does not meet the database category or field rules. Check the values and item type.' });
   console.error('Catalog error:', err);
@@ -180,9 +182,11 @@ router.put('/items/:id', async (req, res) => {
     const [[old]] = await conn.execute('SELECT Item_type FROM CatalogItem WHERE Item_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!old) { await conn.rollback(); return res.status(404).json({ message: 'Item not found.' }); }
     if (old.Item_type !== x.type) throw bad('Item category cannot be changed after creation. Create a new item instead.');
-    await conn.execute('UPDATE CatalogItem SET Title=?, Publisher_id=?, Publication_year=?, Replacement_cost=? WHERE Item_id=?', [x.title,x.publisher,x.year,x.replacement,id]);
+    // Save the subtype row first: the catalog rule trigger reads Newspaper.Is_historical,
+    // so it must already hold the new value when CatalogItem is updated.
     const fields = TYPES[x.type].fields;
     await conn.query(`UPDATE \`${TYPES[x.type].table}\` SET ${fields.map(f=>`\`${f}\` = ?`).join(', ')} WHERE Item_id = ?`, [...fields.map(f=>x.extra[f]), id]);
+    await conn.execute('UPDATE CatalogItem SET Title=?, Publisher_id=?, Publication_year=?, Replacement_cost=? WHERE Item_id=?', [x.title,x.publisher,x.year,x.replacement,id]);
     await syncAuthors(conn, id, x.type, x.authors);
     await conn.commit(); res.json({ message: 'Catalog item updated.' });
   } catch (err) { if (conn) await conn.rollback(); handleError(res, err); }
