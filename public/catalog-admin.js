@@ -44,18 +44,18 @@ function pickItem() {
   $('itemForm').hidden = true; $('copiesPanel').hidden = true; $('findBox').hidden = false;
   $('findInput').value = ''; renderFind(); showTab('item'); $('findInput').focus();
 }
-// renderFind(): draws the matches under the search box (the first 8, so the list stays short).
+// renderFind(): draws every match under the search box. The list scrolls (see #findResults in the CSS),
+// so you can either type to narrow it down or just scroll to the item you want.
 // Clicking a match opens its edit form through editItem().
 function renderFind() {
   const q = $('findInput').value.trim().toLowerCase();
   const rows = catalog.filter(r => !q || [r.Title, r.Item_type, r.Publisher_name].some(v => String(v || '').toLowerCase().includes(q)));
   const box = $('findResults'); box.replaceChildren();
   if (!rows.length) { box.append(el('p', 'No matching items.', 'muted')); return; }
-  rows.slice(0, 8).forEach(r => {
+  rows.forEach(r => {
     const b = el('button', `${r.Title}  (${r.Item_type}, #${r.Item_id})`); b.type = 'button'; b.className = 'secondary';
     b.addEventListener('click', () => editItem(r.Item_id)); box.append(b);
   });
-  if (rows.length > 8) box.append(el('p', `Showing 8 of ${rows.length}. Type more to narrow it down.`, 'muted'));
 }
 function el(tag, text, cls) { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; }
 function option(value, text) { const o = document.createElement('option'); o.value = value; o.textContent = text; return o; }
