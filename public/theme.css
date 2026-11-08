@@ -68,7 +68,7 @@ header {
   flex-wrap: wrap;
 }
 
-/* "Library Database" with the little logo in front (the logo is added by auth-nav.js) */
+/* "The Quiet Room" with the little logo in front (the logo is added by auth-nav.js) */
 header div {
   display: flex;
   align-items: center;

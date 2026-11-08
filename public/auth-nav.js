@@ -147,7 +147,7 @@ function drawFooter(me) {
   const about = document.createElement('div');
   about.className = 'about';
   const name = document.createElement('strong');
-  name.textContent = 'Library Database';
+  name.textContent = 'The Quiet Room';
   const line = document.createElement('span');
   line.textContent = 'A library management project for COSC 3380, University of Houston.';
   about.append(name, line);
