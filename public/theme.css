@@ -560,3 +560,22 @@ td .confirm-box button {
   margin: 0 0 6px;
   font-size: 20px;
 }
+
+/* ---------- An answer shown inside the table row that was used (Place hold, Renew, Return) ---------- */
+.row-note {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.row-note.ok  { background: #e3f4e8; color: #1c5b34; }   /* hold placed: green */
+.row-note.bad { background: #fbe6e6; color: #8f2222; }   /* hold refused: red */
+.row-note a   { color: inherit; text-decoration: underline; }
+
+/* The list of loans out on the Renew and Return pages */
+#loanFilter { max-width: 420px; margin-bottom: 4px; }
+#loanList td select { width: auto; margin: 0 4px 6px 0; }   /* the condition drop-down sits next to its button */
+.nowrap { white-space: nowrap; }
+.late-mark { color: #8f2222; font-size: 13px; font-weight: 600; }

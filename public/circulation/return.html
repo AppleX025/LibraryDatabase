@@ -29,7 +29,7 @@
 
     <main>
         <h1>Return an item</h1>
-        <p class="muted">Enter the ID number of the copy being returned.</p>
+        <p class="muted">Press Return on the loan below, or enter the ID number of the copy being returned.</p>
 
         <!-- Green on success, red (class="error") when something is wrong. Hidden until there is a message. -->
         <div id="notice" role="status" aria-live="polite" hidden></div>
@@ -54,8 +54,16 @@
                 </div>
             </form>
         </section>
+
+        <!-- Every loan that is out right now, with a Return button on each row (filled in by loan-list.js) -->
+        <section class="panel">
+            <h2>Loans out right now</h2>
+            <div id="loanList"></div>
+        </section>
     </main>
 
+    <script src="/inline-confirm.js"></script>
+    <script src="/circulation/loan-list.js"></script>
     <script>
         // How this page works (same pattern as checkout.html, which has
         // line-by-line notes):
@@ -114,6 +122,7 @@
                 // Clear the copy ID so the next returned item can be entered straight away.
                 // (After an error it stays, so staff can see and fix what they typed.)
                 if (response.ok) {
+                    loanList.reload();   // the returned loan leaves the list
                     form.copy_id.value = '';
                     // Back to the normal choice so the next return does not carry
                     // over a 'damaged' or 'lost' selection by accident.
@@ -127,6 +136,16 @@
                 // Whatever happened, make the button clickable again.
                 submitButton.disabled = false;
             }
+        });
+
+        // The list of loans out right now (see loan-list.js). Each row has a condition
+        // drop-down (OK / Damaged / Lost) and a Return button. Answers go to the notice box above.
+        const loanList = initLoanList({
+            endpoint: '/api/circulation/return',
+            buttonLabel: 'Return',
+            showRenewals: false,
+            conditionChoice: true,
+            notify: showNotice
         });
 
         // Run the staff check as soon as the page opens.

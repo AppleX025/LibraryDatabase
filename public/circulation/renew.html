@@ -29,7 +29,7 @@
 
     <main>
         <h1>Renew a loan</h1>
-        <p class="muted">Enter the ID number of the copy the member wants to keep longer.
+        <p class="muted">Press Renew on the loan below, or enter the ID number of the copy.
             Standard loans only; each renewal adds 14 days.</p>
 
         <!-- Green on success, red (class="error") when a rule is broken. Hidden until there is a message. -->
@@ -45,8 +45,15 @@
                 </div>
             </form>
         </section>
+
+        <!-- Every loan that is out right now, with a Renew button on each row (filled in by loan-list.js) -->
+        <section class="panel">
+            <h2>Loans out right now</h2>
+            <div id="loanList"></div>
+        </section>
     </main>
 
+    <script src="/circulation/loan-list.js"></script>
     <script>
         // How this page works (same pattern as checkout.html, which has
         // line-by-line notes):
@@ -102,6 +109,7 @@
                 // Clear the copy ID after a renewal; after an error it stays so staff can see it.
                 if (response.ok) {
                     form.copy_id.value = '';
+                    loanList.reload();   // the list shows the new due date
                 }
                 form.copy_id.focus();
             } catch (err) {
@@ -111,6 +119,16 @@
                 // Whatever happened, make the button clickable again.
                 submitButton.disabled = false;
             }
+        });
+
+        // The list of loans out right now (see loan-list.js). A short loan cannot be renewed,
+        // so its button stays off and says why. Answers go to the notice box above.
+        const loanList = initLoanList({
+            endpoint: '/api/circulation/renew',
+            buttonLabel: 'Renew',
+            showRenewals: true,
+            canAct: (loan) => loan.loan_type === 'short' ? 'Short loan: cannot be renewed' : null,
+            notify: showNotice
         });
 
         // Run the staff check as soon as the page opens.

@@ -171,19 +171,6 @@ td button {
   display: none;
 }
 
-/* ---------- Answer to "Place hold", shown inside the row that was clicked ---------- */
-.row-note {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-.row-note.ok  { background: #e3f4e8; color: #1c5b34; }   /* hold placed: green */
-.row-note.bad { background: #fbe6e6; color: #8f2222; }   /* hold refused: red */
-.row-note a   { color: inherit; text-decoration: underline; }
-
 /* ---------- Results table ---------- */
 /* Lets a wide table scroll sideways instead of breaking the page */
 .table-scroll {
