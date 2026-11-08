@@ -82,6 +82,16 @@ header div strong {
   letter-spacing: -0.02em;
 }
 
+/* The logo and name together are a link to the main page */
+header a.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+header a.brand-link:hover strong {
+  text-decoration: underline;
+}
+
 /* The " / Checkout" text next to the name */
 header div span {
   color: var(--muted);

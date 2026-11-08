@@ -109,6 +109,18 @@ function addLogo() {
     svg.appendChild(rect);
   }
   brand.prepend(svg);   // prepend = put it first, before the name
+
+  // Make the logo and the name one link back to the main page (the search page), so
+  // clicking "The Quiet Room" always takes the visitor home.
+  const name = brand.querySelector('strong');
+  if (name) {
+    const home = document.createElement('a');
+    home.href = '/';                         // "/" sends the visitor on to the main page
+    home.className = 'brand-link';
+    home.title = 'Back to the main page';
+    home.append(svg, name);                  // moves the logo and the name inside the link
+    brand.prepend(home);                     // the link goes first, before the " / Page" text
+  }
 }
 
 // footerColumns(me): the link columns at the bottom of the page, for this kind of visitor.
