@@ -96,6 +96,7 @@
 
       for (const item of data) {
         const tr = document.createElement('tr');
+        tr.dataset.itemId = item.Item_id;   // lets placeHold() find this row again after the table is redrawn
         for (const value of [item.Title, item.Item_type, item.available_copies]) {
           const td = document.createElement('td');
           td.textContent = value;
@@ -144,8 +145,25 @@
       // Refresh the results first so the available copy count updates.
       // "await" makes us wait until the search has finished, because search() clears the message.
       await search();
-      // Now set the message, so it stays on the page under the search bar
-      message.textContent = data.message || data.error;
+      // Show the answer in the row the member clicked, right where the Place hold button is,
+      // so it cannot be missed. It is green when the hold was placed and red when it was refused.
+      const text = data.message || data.error;
+      const row = document.querySelector('#results tr[data-item-id="' + itemId + '"]');
+      if (!row) { message.textContent = text; return; }   // row not on screen any more: use the line under the search bar
+
+      const note = document.createElement('div');
+      note.className = 'row-note ' + (res.ok ? 'ok' : 'bad');
+      note.setAttribute('role', 'status');                 // screen readers read it out
+      note.append(text);
+      // A duplicate hold: point the member to the page where the hold can be seen.
+      if (res.status === 409) {
+        note.append(' You can see it in ');
+        const link = document.createElement('a');
+        link.href = '/my-holds.html';
+        link.textContent = 'My Holds';
+        note.append(link, '.');
+      }
+      row.lastElementChild.appendChild(note);
     }
 
     // A category button picks that category in the list and searches right away.

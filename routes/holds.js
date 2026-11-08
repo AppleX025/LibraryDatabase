@@ -59,7 +59,7 @@ router.post('/api/holds', isAuthenticated, memberForHolds, async (req, res) => {
   } catch (err) {
     // The database allows only one open (Active/Ready) hold per member and item
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'You already have an open hold on this item.' });
+      return res.status(409).json({ error: 'You already have a hold on this title.' });
     }
     console.error(err);
     res.status(500).json({ error: 'Could not place hold.' });
