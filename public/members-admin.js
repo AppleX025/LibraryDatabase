@@ -60,11 +60,6 @@ async function loadMembers({ keepMessage = false } = {}) {
 
     const edit = document.createElement('button');
     edit.textContent = 'Edit';
-    // Staff-type members are linked to a staff account by an administrator, so no edit here.
-    if (m.Type_name === 'Staff') {
-      edit.disabled = true;
-      edit.title = 'Linked to a staff account';
-    }
     edit.addEventListener('click', () => openEdit(m));
 
     const toggle = document.createElement('button');
@@ -77,7 +72,6 @@ async function loadMembers({ keepMessage = false } = {}) {
     remove.textContent = 'Delete';
     remove.className = 'secondary';
     remove.addEventListener('click', () => deleteMember(m, remove));
-    if (m.Type_name === 'Staff') remove.disabled = true;   // linked to a staff account
     actions.append(edit, toggle, remove);
     tr.appendChild(actions);
     rows.appendChild(tr);
@@ -96,7 +90,18 @@ function openEdit(m) {
   document.getElementById('firstName').value = m.First_name;
   document.getElementById('lastName').value = m.Last_name;
   document.getElementById('email').value = m.Email;
-  document.getElementById('memberType').value = m.Type_name;
+  // A member linked to a staff account has the type "Staff". That option is not in the normal list,
+  // so it is added for them, and the drop-down is locked: the type is the link to their staff account.
+  const typeSelect = document.getElementById('memberType');
+  const staffOption = typeSelect.querySelector('option[value="Staff"]');
+  if (m.Type_name === 'Staff') {
+    if (!staffOption) typeSelect.append(new Option('Staff', 'Staff'));
+    typeSelect.disabled = true;
+  } else {
+    if (staffOption) staffOption.remove();
+    typeSelect.disabled = false;
+  }
+  typeSelect.value = m.Type_name;
   document.getElementById('phone').value = m.Phone || '';
   document.getElementById('street').value = m.Street || '';
   document.getElementById('city').value = m.City || '';

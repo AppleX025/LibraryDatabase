@@ -91,13 +91,17 @@ router.put('/:id', isAdmin, async (req, res) => {
     city: clean(req.body.city), state: clean(req.body.state), zip: clean(req.body.zip)
   };
 
-  // Check every value before touching the database.
-  const problem = validateMemberFields(data);
+  // A member linked to a staff account has the type "Staff". The page lists only Student, Faculty
+  // and Alumni for normal members, so validate that case as if it were a normal type; the real
+  // rule for "Staff" (it can never be set or removed here) is checked below, after the lookup.
+  const sentStaffType = data.memberType === 'Staff';
+  const problem = validateMemberFields(sentStaffType ? { ...data, memberType: 'Student' } : data);
   if (problem) return res.status(400).json({ message: problem });
 
   try {
 
-    // Look up this member's CURRENT type. Staff-type members are managed by an administrator, so it refuses edits here.
+    // Look up this member's CURRENT type. An administrator may edit a Staff-type member's details,
+    // but the type itself stays "Staff" (it is the link to their staff account).
 
     const [current] = await db.query(
       `SELECT t.Type_name
@@ -107,8 +111,12 @@ router.put('/:id', isAdmin, async (req, res) => {
     );
 
     if (current.length === 0) return res.status(404).json({ message: 'Member not found.' });
-    if (current[0].Type_name === 'Staff') {
-      return res.status(403).json({ message: 'Staff-type members cannot be edited.' });
+    const isStaffType = current[0].Type_name === 'Staff';
+    if (isStaffType && !sentStaffType) {
+      return res.status(400).json({ message: "A staff member's account type cannot be changed here." });
+    }
+    if (!isStaffType && sentStaffType) {
+      return res.status(400).json({ message: 'The Staff type is linked to a staff account and cannot be given here.' });
     }
 
     // The page sends the type by name (like "Student"), so look up its id.
@@ -179,8 +187,9 @@ router.patch('/:id/active', isAdmin, async (req, res) => {
 // A SOFT delete: nothing is removed from the database. The account gets Is_deleted = TRUE (and is
 // switched off, Is_active = FALSE), so the person disappears from the member list, cannot log in
 // and cannot borrow, while their loans, fines and holds stay in the database as history.
-// Not allowed while the member still has an item out or owes money (settle those first), or when the
-// member is linked to a staff account (that account is managed by an administrator, not here).
+// Not allowed while the member still has an item out or owes money (settle those first).
+// A member linked to a staff account can be deleted too: only the borrowing account is hidden,
+// the staff login itself is not touched.
 // Their open holds are cancelled so nobody keeps waiting for a person who is gone.
 router.delete('/:id', isAdmin, async (req, res) => {
   const id = parseMemberId(req.params.id);
@@ -191,12 +200,8 @@ router.delete('/:id', isAdmin, async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
     // FOR UPDATE locks the member's row while we check, so a checkout cannot sneak in meanwhile.
-    const [[member]] = await conn.query('SELECT Member_id, Staff_id FROM Member WHERE Member_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
+    const [[member]] = await conn.query('SELECT Member_id FROM Member WHERE Member_id = ? AND Is_deleted = FALSE FOR UPDATE', [id]);
     if (!member) { await conn.rollback(); return res.status(404).json({ message: 'Member not found.' }); }
-    if (member.Staff_id !== null) {
-      await conn.rollback();
-      return res.status(400).json({ message: 'This member is linked to a staff account, so it cannot be deleted here.' });
-    }
     const [[out]] = await conn.query('SELECT COUNT(*) AS n FROM Loan WHERE Member_id = ? AND Return_date IS NULL', [id]);
     if (out.n > 0) {
       await conn.rollback();
