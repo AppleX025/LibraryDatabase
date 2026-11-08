@@ -31,7 +31,8 @@
 
       <div class="tabs">
         <button type="button" data-tab="catalog" class="active">Catalog</button>
-        <button type="button" data-tab="item">Add / Edit item</button>
+        <button type="button" data-tab="item">Add item</button>
+        <button type="button" data-tab="edit">Edit item</button>
         <button type="button" data-tab="people">Publishers &amp; authors</button>
       </div>
 
@@ -65,6 +66,14 @@
 
       <section id="item" class="panel" hidden>
         <h2 id="itemHeading">Add catalog item</h2>
+
+        <!-- Shown on the Edit item tab before an item is chosen: a search box that finds the item to edit. -->
+        <div id="findBox" hidden>
+          <label>Search for the item you want to edit
+            <input id="findInput" type="search" placeholder="Type a title, category or publisher" autocomplete="off">
+          </label>
+          <div id="findResults"></div>
+        </div>
 
         <form id="itemForm">
           <div class="form-grid">

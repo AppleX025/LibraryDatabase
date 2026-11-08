@@ -1,6 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let currentId = null;
+let picking = false;   // true while the Edit item tab is open but no item has been chosen yet
 let catalog = [], publishers = [], authors = [];
 // canEdit is true for administrators. Ordinary staff get a read-only catalog: they can look at an
 // item and its copies (they need the Copy ID to check an item out) but cannot add, edit or withdraw.
@@ -26,7 +27,36 @@ async function api(path, opts = {}) {
   return data;
 }
 function notify(message, error = false) { const n = $('notice'); n.hidden = false; n.textContent = message; n.classList.toggle('error', error); n.scrollIntoView({behavior:'smooth',block:'nearest'}); }
-function showTab(tab) { document.querySelectorAll('.panel').forEach(p => { if (['catalog','item','people'].includes(p.id)) p.hidden = p.id !== tab; }); document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active',b.dataset.tab === tab)); }
+// showTab(tab): shows one panel and lights up its tab button. The add form and the edit form are the
+// same panel ('item'), but they get their own tab buttons: "Add item" for a new item and "Edit item" while
+// an item is open or while the admin is still searching for one (picking). Only admins see the Edit tab.
+function showTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => { if (['catalog','item','people'].includes(p.id)) p.hidden = p.id !== tab; });
+  const lit = (tab === 'item' && (currentId !== null || picking)) ? 'edit' : tab;   // which tab button to highlight
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === lit));
+  document.querySelector('[data-tab="edit"]').hidden = !canEdit;
+}
+// pickItem(): the Edit item tab with nothing chosen yet. Hides the form and shows the search box,
+// which lists the items whose title, category or publisher match what is typed.
+function pickItem() {
+  currentId = null; picking = true;
+  $('itemHeading').textContent = 'Edit catalog item';
+  $('itemForm').hidden = true; $('copiesPanel').hidden = true; $('findBox').hidden = false;
+  $('findInput').value = ''; renderFind(); showTab('item'); $('findInput').focus();
+}
+// renderFind(): draws the matches under the search box (the first 8, so the list stays short).
+// Clicking a match opens its edit form through editItem().
+function renderFind() {
+  const q = $('findInput').value.trim().toLowerCase();
+  const rows = catalog.filter(r => !q || [r.Title, r.Item_type, r.Publisher_name].some(v => String(v || '').toLowerCase().includes(q)));
+  const box = $('findResults'); box.replaceChildren();
+  if (!rows.length) { box.append(el('p', 'No matching items.', 'muted')); return; }
+  rows.slice(0, 8).forEach(r => {
+    const b = el('button', `${r.Title}  (${r.Item_type}, #${r.Item_id})`); b.type = 'button'; b.className = 'secondary';
+    b.addEventListener('click', () => editItem(r.Item_id)); box.append(b);
+  });
+  if (rows.length > 8) box.append(el('p', `Showing 8 of ${rows.length}. Type more to narrow it down.`, 'muted'));
+}
 function el(tag, text, cls) { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; }
 function option(value, text) { const o = document.createElement('option'); o.value = value; o.textContent = text; return o; }
 function renderSelects() {
@@ -64,7 +94,7 @@ function renderExtras(values = {}) {
   $('authorPicker').hidden=!['book','researchpaper'].includes(type);
 }
 function newItem() {
-  currentId=null; $('itemForm').reset(); $('itemType').disabled=false; $('itemHeading').textContent='Add catalog item';
+  currentId=null; picking=false; $('findBox').hidden=true; $('itemForm').hidden=false; $('itemForm').reset(); $('itemType').disabled=false; $('itemHeading').textContent='Add catalog item';
   [...$('authorSelect').options].forEach(o=>o.selected=false);renderExtras();$('copiesPanel').hidden=true;showTab('item');
 }
 function fillForm(form, values) {
@@ -75,7 +105,7 @@ function fillForm(form, values) {
 }
 async function editItem(id) {
   try {
-    const item=await api('/items/'+id); currentId=id; $('itemForm').reset();
+    const item=await api('/items/'+id); currentId=id; picking=false; $('findBox').hidden=true; $('itemForm').reset();
     fillForm($('itemForm'),item); $('itemType').disabled=true; renderExtras(item);
     [...$('authorSelect').options].forEach(o=>o.selected=item.Author_ids.includes(Number(o.value)));
     $('itemHeading').textContent=canEdit?`Edit item #${id}`:`Copies of "${item.Title}"`; $('copiesPanel').hidden=false; renderCopies(item.copies); $('dateAcquired').value=new Date().toISOString().slice(0,10);
@@ -149,9 +179,9 @@ $('publisherForm').addEventListener('submit',async e=>{
 $('authorForm').addEventListener('submit',async e=>{
   e.preventDefault();try{await api('/authors',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});e.target.reset();await loadLists();notify('Author added.');}catch(err){notify(err.message,true);}
 });
-$('search').addEventListener('input',renderCatalog);
+$('search').addEventListener('input',renderCatalog);$('findInput').addEventListener('input',renderFind);
 $('newItem').addEventListener('click',newItem);$('cancelItem').addEventListener('click',()=>showTab('catalog'));
-document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.tab==='item')newItem();else showTab(b.dataset.tab);}));
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.tab==='item')newItem();else if(b.dataset.tab==='edit'){if(currentId!==null)editItem(currentId);else pickItem();}else showTab(b.dataset.tab);}));
 // applyRole(): ask the server who this is (GET /me) and, for staff who are not administrators,
 // hide everything that changes the catalog. Runs before the catalog is drawn.
 async function applyRole() {
@@ -159,6 +189,7 @@ async function applyRole() {
   if (!canEdit) {
     $('newItem').hidden = true;
     document.querySelector('[data-tab="item"]').hidden = true;
+    document.querySelector('[data-tab="edit"]').hidden = true;
     document.querySelector('[data-tab="people"]').hidden = true;
   }
 }

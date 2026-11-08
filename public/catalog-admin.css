@@ -282,3 +282,8 @@ li {
     padding: 16px;
   }
 }
+
+/* The "find an item to edit" box on the Edit item tab: one full-width button per match. */
+#findResults { margin-top: .75rem; display: grid; gap: .4rem; }
+#findResults button { text-align: left; width: 100%; }
+#findResults .muted { margin: .25rem 0; }
