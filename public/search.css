@@ -257,3 +257,113 @@ th {
     padding: 16px;
   }
 }
+
+/* ---------- Catalog cards: the search results grid ---------- */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 24px;
+  margin-top: 16px;
+}
+
+/* One card per item */
+.book-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #d9e2e3;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* The soft grey area behind the cover picture */
+.book-cover-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 18px 0;
+  background: #eef3f3;
+}
+
+.book-cover {
+  width: 128px;
+  height: 192px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #e5e7eb;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* Plain cover shown when an item has no picture file */
+.book-cover-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  overflow: hidden;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #ffffff;
+  background: #374151;
+}
+.bc-book { background: #1b2a49; }
+.bc-dvd { background: #6b1f2a; }
+.bc-boardgame { background: #1f4a3a; }
+.bc-music { background: #4c3a78; }
+.bc-videogame { background: #7a4a12; }
+
+/* Text under the cover */
+.book-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+  padding: 14px 16px 16px;
+}
+
+.book-title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #0f4c5c;
+}
+
+/* The small CATEGORY label above the title */
+.book-type {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4a5b61;
+}
+
+/* Description: at most 4 lines, then cut off */
+.book-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #4a5b61;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.book-stock {
+  font-size: 14px;
+  font-weight: 700;
+}
+.book-stock.in { color: #1c5b34; }
+.book-stock.out { color: #8f2222; }
+
+/* The Place hold button sits at the bottom of every card */
+.book-actions {
+  margin-top: auto;
+  padding-top: 6px;
+}
+.book-actions button {
+  padding: 8px 14px;
+  font-size: 14px;
+}
