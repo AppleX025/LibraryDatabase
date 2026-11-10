@@ -12,7 +12,7 @@
 --   - Two ACTION triggers (1 and 2): SQL that MySQL runs by itself whenever a
 --     Loan row is added or changed. They keep Copy.Status in step with the
 --     loans, no matter which page (or person in Workbench) changed the loan.
---   - Five RULE (semantic) triggers (3 to 7): they enforce library rules that
+--   - Four RULE (semantic) triggers (3 to 6): they enforce library rules that
 --     table definitions cannot express because the rule looks at other tables
 --     (fines, member type, open loans). They run BEFORE the change is saved
 --     and, when a rule is broken, stop it with an error (SIGNAL).
@@ -38,6 +38,8 @@ DROP TRIGGER IF EXISTS trg_loan_return_copy_status;
 DROP TRIGGER IF EXISTS trg_loan_rule_member_active;
 DROP TRIGGER IF EXISTS trg_loan_rule_unpaid_fines;
 DROP TRIGGER IF EXISTS trg_loan_rule_loan_limits;
+-- Removed: staff cannot check out to themselves is a permission check, not a data rule,
+-- so the app enforces it (routes/circulation.js). This DROP clears it from older copies.
 DROP TRIGGER IF EXISTS trg_loan_rule_staff_borrower;
 DROP TRIGGER IF EXISTS trg_loan_rule_renewals;
 
@@ -205,31 +207,7 @@ BEGIN
 END$$
 
 -- ---------------------------------------------------------------------
--- Trigger 6: trg_loan_rule_staff_borrower
--- Rule: when a library employee borrows (their Member row is linked to their
--- Staff row), a DIFFERENT staff member must process the checkout.
--- ---------------------------------------------------------------------
-CREATE TRIGGER trg_loan_rule_staff_borrower
-BEFORE INSERT ON Loan
-FOR EACH ROW
-BEGIN
-    DECLARE v_member_staff INT;         -- the borrower's own Staff id (NULL for a normal member)
-
-    IF NEW.Return_date IS NULL THEN
-        SELECT Staff_id INTO v_member_staff
-          FROM Member
-         WHERE Member_id = NEW.Member_id;
-
-        -- Only compare when the borrower really is an employee (not NULL).
-        IF v_member_staff IS NOT NULL AND v_member_staff = NEW.Staff_id THEN
-            SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'Rule: a staff member cannot check out an item to themselves. A different staff member must do it.';
-        END IF;
-    END IF;
-END$$
-
--- ---------------------------------------------------------------------
--- Trigger 7: trg_loan_rule_renewals
+-- Trigger 6: trg_loan_rule_renewals
 -- Rules for a renewal (a loan update where Renewal_count goes up):
 --   - a SHORT loan can never be renewed
 --   - the renewal count cannot pass the member type's limit
