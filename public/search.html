@@ -26,9 +26,7 @@
     </nav>
   </header>
 
-  <!-- Banner at the top of the home page: a big search box and one-click category buttons.
-       The box, the category list, the Search button and the message line keep the same ids
-       as before, so the script below works unchanged. -->
+  <!-- Banner at the top of the home page: a big search box and one-click category buttons. -->
   <section class="hero">
     <h1>Find your next read.</h1>
     <p>Search books, board games, DVDs and more. See what is on the shelf and place a hold when every copy is out.</p>
@@ -66,59 +64,140 @@
 
     <section class="panel">
       <h2>Results</h2>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Title</th><th>Category</th><th>Available copies</th><th></th></tr>
-          </thead>
-          <tbody id="results"></tbody>
-        </table>
-      </div>
+      <!-- One card per item is added here by search() -->
+      <div class="results-grid" id="results"></div>
     </section>
   </main>
 
   <script>
-    // Runs the search and fills the results table
+    // Short descriptions shown on the cards. They live here in the page (not in the database).
+    // The key is the title turned into a "slug", the same name as the picture file.
+    const DESCRIPTIONS = {
+      '1984': 'A man in a totalitarian state, watched by Big Brother, risks everything to think and love freely.',
+      'a-relational-model-of-data-for-large-shared-data-banks': 'E. F. Codd\'s 1970 paper that introduced the relational model, the foundation of modern databases.',
+      'abbey-road': 'The Beatles\' 1969 album, including "Come Together" and the famous closing medley.',
+      'animal-farm': 'The animals drive out their farmer to run the farm themselves, until some become more equal than others.',
+      'brave-new-world': 'In a future society engineered for comfort and conformity, one outsider questions the price of happiness.',
+      'catan': 'Players build settlements and trade resources to become the leading power on the island of Catan.',
+      'database-system-concepts': 'A widely used college textbook on relational databases, SQL, transactions and database design.',
+      'dune': 'On the desert planet Arrakis, young Paul Atreides is pulled into a war over the universe\'s most valuable spice.',
+      'emma': 'Clever, wealthy Emma Woodhouse plays matchmaker in her village and learns that she has misread everyone, herself included.',
+      'fahrenheit-451': 'In a future where books are burned, fireman Guy Montag begins to question his job.',
+      'frankenstein': 'A young scientist brings a creature to life, then must face the consequences of abandoning it.',
+      'harry-potter-and-the-goblet-of-fire': 'Harry is mysteriously entered in the dangerous Triwizard Tournament during his fourth year at Hogwarts.',
+      'harry-potter-and-the-sorcerer-s-stone': 'An orphan boy learns he is a wizard and begins his first year at Hogwarts School of Witchcraft and Wizardry.',
+      'houston-chronicle-october-20-2026': 'The Houston Chronicle daily newspaper, issue of October 20, 2026.',
+      'jurassic-park': 'A theme park of cloned dinosaurs goes wrong when the power fails and the animals get loose.',
+      'lord-of-the-rings': 'A hobbit and his companions set out to destroy a powerful ring and save Middle-earth.',
+      'minecraft': 'A sandbox game where players mine resources, build structures and survive in a world made of blocks.',
+      'murder-on-the-orient-express': 'Detective Hercule Poirot must solve a murder on a snowbound train where every passenger has a secret.',
+      'pride-and-prejudice': 'Elizabeth Bennet and the proud Mr. Darcy must get past first impressions and family pressure to find love.',
+      'the-great-gatsby': 'Narrator Nick Carraway watches the rise and fall of the mysterious millionaire Jay Gatsby in 1920s New York.',
+      'the-hobbit': 'Bilbo Baggins leaves his comfortable home to help a company of dwarves win back their treasure from a dragon.',
+      'the-legend-of-zelda-breath-of-the-wild': 'Link wakes from a long sleep and explores the open kingdom of Hyrule to defeat Calamity Ganon.',
+      'the-shawshank-redemption': 'A banker wrongly sent to prison builds an unlikely friendship and never gives up hope of freedom.',
+      'thriller': 'Michael Jackson\'s 1982 album, one of the best-selling albums of all time.',
+      'ticket-to-ride': 'Players collect train cards and claim railway routes to connect cities across the map.',
+      'to-kill-a-mockingbird': 'In a small Southern town, young Scout watches her father defend a Black man falsely accused of a crime.'
+    };
+
+    // Turns a title into the name of its picture file, for example
+    // "Animal Farm" becomes "animal-farm" (the file is /images/animal-farm.jpg).
+    function slugOf(title) {
+      return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+
+    // A plain colored cover with the title on it, used when an item has no picture file.
+    function makeFallbackCover(item) {
+      const box = document.createElement('div');
+      box.className = 'book-cover book-cover-fallback bc-' + String(item.Item_type || 'other').toLowerCase();
+      box.textContent = item.Title;
+      box.setAttribute('aria-hidden', 'true');   // the title is already written under the cover
+      return box;
+    }
+
+    // The cover picture for one item. It tries .jpg, then .png, then .webp.
+    // If none of them exists, the plain cover takes its place.
+    function makeCover(item) {
+      const slug = slugOf(item.Title);
+      const endings = ['jpg', 'png', 'webp'];
+      let tried = 0;
+      const img = document.createElement('img');
+      img.className = 'book-cover';
+      img.alt = '';                               // the title is already written under the cover
+      img.width = 128;
+      img.height = 192;
+      img.loading = 'lazy';
+      img.addEventListener('error', () => {
+        tried++;
+        if (tried < endings.length) img.src = '/images/' + slug + '.' + endings[tried];
+        else img.replaceWith(makeFallbackCover(item));
+      });
+      img.src = '/images/' + slug + '.' + endings[0];
+      return img;
+    }
+
+    // Makes a small element with a class and some text
+    function makeEl(tag, className, text) {
+      const el = document.createElement(tag);
+      el.className = className;
+      if (text !== undefined) el.textContent = text;
+      return el;
+    }
+
+    // Runs the search and fills the grid of cards
     async function search() {
       const q = document.getElementById('q').value;
       const category = document.getElementById('category').value;
       const message = document.getElementById('message');
-      const tbody = document.getElementById('results');
+      const grid = document.getElementById('results');
 
       const url = '/api/search?q=' + encodeURIComponent(q) +
                   '&category=' + encodeURIComponent(category);
       const response = await fetch(url);
       const data = await response.json();
 
-      tbody.innerHTML = '';
+      grid.innerHTML = '';
       if (!response.ok) { message.textContent = data.error || data.message; return; }
       message.textContent = data.length === 0 ? 'No items found.' : '';
 
       for (const item of data) {
-        const tr = document.createElement('tr');
-        tr.dataset.itemId = item.Item_id;   // lets placeHold() find this row again after the table is redrawn
-        for (const value of [item.Title, item.Item_type, item.available_copies]) {
-          const td = document.createElement('td');
-          td.textContent = value;
-          tr.appendChild(td);
-        }
+        const card = makeEl('article', 'book-card');
+        card.dataset.itemId = item.Item_id;   // lets placeHold() find this card again after the grid is redrawn
 
-        // Place hold button. Clicking it opens the "are you sure?" strip in this row.
-        const actionTd = document.createElement('td');
-        const holdBtn = document.createElement('button');
-        holdBtn.textContent = 'Place hold';
-        holdBtn.addEventListener('click', () => askToHold(actionTd, holdBtn, item));
-        actionTd.appendChild(holdBtn);
-        tr.appendChild(actionTd);
+        // Top: the cover picture
+        const wrap = makeEl('div', 'book-cover-wrap');
+        wrap.appendChild(makeCover(item));
+        card.appendChild(wrap);
 
-        tbody.appendChild(tr);
+        // Below: category, title, description, availability
+        const body = makeEl('div', 'book-body');
+        body.appendChild(makeEl('span', 'book-type', item.Item_type));
+        body.appendChild(makeEl('h3', 'book-title', item.Title));
+
+        const description = DESCRIPTIONS[slugOf(item.Title)];
+        if (description) body.appendChild(makeEl('p', 'book-desc', description));
+
+        const copies = Number(item.available_copies);
+        body.appendChild(copies > 0
+          ? makeEl('div', 'book-stock in', copies + (copies === 1 ? ' copy available' : ' copies available'))
+          : makeEl('div', 'book-stock out', 'No copies on the shelf. Place a hold to join the line.'));
+
+        // Place hold button. Clicking it opens the "are you sure?" strip in this card.
+        const actions = makeEl('div', 'book-actions');
+        const holdBtn = makeEl('button', '', 'Place hold');
+        holdBtn.addEventListener('click', () => askToHold(holdBtn, item));
+        actions.appendChild(holdBtn);
+        body.appendChild(actions);
+
+        card.appendChild(body);
+        grid.appendChild(card);
       }
     }
 
     // Asks "Place a hold on ...?" in place of the Place hold button, then places the hold on Yes.
-    // The question box is the shared one (inline-confirm.js, styled in theme.css), so it looks and
-    // works the same as the questions on every other page.
-    async function askToHold(cell, holdBtn, item) {
+    // The question box is the shared one (inline-confirm.js, styled in theme.css).
+    async function askToHold(holdBtn, item) {
       // Visitors who are not logged in go to the login page instead
       const meResponse = await fetch('/me');
       const me = await meResponse.json();
@@ -145,11 +224,11 @@
       // Refresh the results first so the available copy count updates.
       // "await" makes us wait until the search has finished, because search() clears the message.
       await search();
-      // Show the answer in the row the member clicked, right where the Place hold button is,
-      // so it cannot be missed. It is green when the hold was placed and red when it was refused.
+      // Show the answer inside the card the member clicked, right under the Place hold button.
+      // It is green when the hold was placed and red when it was refused.
       const text = data.message || data.error;
-      const row = document.querySelector('#results tr[data-item-id="' + itemId + '"]');
-      if (!row) { message.textContent = text; return; }   // row not on screen any more: use the line under the search bar
+      const card = document.querySelector('#results [data-item-id="' + itemId + '"]');
+      if (!card) { message.textContent = text; return; }   // card not on screen any more: use the line under the search bar
 
       const note = document.createElement('div');
       note.className = 'row-note ' + (res.ok ? 'ok' : 'bad');
@@ -163,7 +242,7 @@
         link.textContent = 'My Holds';
         note.append(link, '.');
       }
-      row.lastElementChild.appendChild(note);
+      card.querySelector('.book-actions').appendChild(note);
     }
 
     // A category button picks that category in the list and searches right away.
