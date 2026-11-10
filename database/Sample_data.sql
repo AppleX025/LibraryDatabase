@@ -255,7 +255,7 @@ SELECT Loan_id, 'overdue', LEAST(DATEDIFF(CURDATE(), Due_date) * 0.35, 10.00), C
 
 -- =====================================================================
 -- 10. Holds (one waiting, one ready) and extra notifications
---     (the 4 'fine_assessed' notifications were already added by the trigger)
+--     (the 'fine_assessed' and 'overdue' notifications were already added by the triggers)
 -- =====================================================================
 -- Alice waits for Animal Farm (both copies are on loan)
 INSERT INTO Hold (Item_id, Member_id, Status)
@@ -267,10 +267,9 @@ VALUES ((SELECT Item_id FROM CatalogItem WHERE Title='Emma'), @bob,
 
 INSERT INTO Notification (Member_id, Notification_type, Message, Is_read) VALUES
  (@bob,        'hold_ready', 'Your hold on Emma is ready for pickup. It will be held for 2 days.', FALSE),
- (@carla,      'due_soon',   'Animal Farm is due in 4 days.', FALSE),
- (@testmember, 'overdue',    'Murder on the Orient Express is overdue. Please return it as soon as possible.', FALSE),
- (@dan,        'overdue',    'Animal Farm is overdue. Please return it as soon as possible.', FALSE),
- (@eva,        'overdue',    '1984 is overdue. Please return it as soon as possible.', TRUE);
+ (@carla,      'due_soon',   'Animal Farm is due in 4 days.', FALSE);
+-- The 'overdue' notices for the three loans that are still out are not typed here any more:
+-- trg_fine_overdue_notify (trigger_fine_notify.sql) made them when their overdue fines were added above.
 
 SET SQL_SAFE_UPDATES = 1;
 

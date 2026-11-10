@@ -46,6 +46,10 @@ function el(tag, text, className) {
   return node;
 }
 
+// The value of the explicit "All ..." choice in a drop-down. It means "no filter on this" and is
+// left out of the address, so the server sees the same thing as before.
+const ALL = 'all';
+
 // ---------- The filter bar ----------
 
 // buildFilters(config, options): draws the From / To / Item category / Member type fields
@@ -63,18 +67,23 @@ function buildFilters(config, options) {
     wrap.append(label, control);
     return wrap;
   }
-  // choice(id, firstText, values): a drop-down with an "all" choice first.
-  function choice(id, firstText, values) {
+  // choice(id, firstText, values): a drop-down that STARTS on "Choose ..." (an empty value), so the
+  // person has to pick on purpose before a report can be shown. "All ..." is one of the choices,
+  // not the starting point. required makes the browser refuse the form until something is picked.
+  function choice(id, chooseText, allText, values) {
     const select = document.createElement('select');
     select.id = id;
     select.name = id;
-    select.append(new Option(firstText, ''));
+    select.required = true;
+    select.append(new Option(chooseText, ''));
+    select.append(new Option(allText, ALL));
     for (const v of values) select.append(new Option(v, v));
     return select;
   }
   function dateInput(id) {
     const input = document.createElement('input');
     input.type = 'date';
+    input.required = true;   // no default dates: the person picks the period
     input.id = id;
     input.name = id;
     return input;
@@ -82,17 +91,17 @@ function buildFilters(config, options) {
 
   form.append(field(config.fromLabel || 'From', dateInput('from')));
   form.append(field(config.toLabel || 'To', dateInput('to')));
-  form.append(field('Item category', choice('type', 'All categories', options.itemTypes)));
+  form.append(field('Item category', choice('type', 'Choose a category...', 'All categories', options.itemTypes)));
   if (config.showMemberType) {
-    form.append(field('Membership type', choice('memberType', 'All membership types', options.memberTypes)));
+    form.append(field('Membership type', choice('memberType', 'Choose a membership type...', 'All membership types', options.memberTypes)));
   }
 
-  const apply = el('button', 'Apply');
+  const apply = el('button', 'Show report');
   apply.type = 'submit';
   const clear = el('button', 'Clear', 'secondary');
   clear.type = 'button';
-  // Clear empties every field and loads the report again with no filters.
-  clear.addEventListener('click', () => { form.reset(); form.requestSubmit(); });
+  // Clear empties every field and hides the report again: nothing is shown until the filters are chosen.
+  clear.addEventListener('click', () => { form.reset(); form.dispatchEvent(new Event('filters-cleared')); });
   const buttons = el('div', null, 'field buttons');
   buttons.append(apply, clear);
   form.append(buttons);
@@ -104,7 +113,7 @@ function buildFilters(config, options) {
 function queryString(form) {
   const params = new URLSearchParams();
   for (const [key, value] of new FormData(form)) {
-    if (value) params.set(key, value);
+    if (value && value !== ALL) params.set(key, value);   // empty and "All" both mean no filter
   }
   const text = params.toString();
   return text ? '?' + text : '';
@@ -136,7 +145,8 @@ function drawTables(tables, data) {
   for (const table of tables) {
     const card = el('section', null, 'panel');
     card.append(el('h2', table.title));
-    if (table.note) card.append(el('p', table.note, 'muted'));
+    const note = typeof table.note === 'function' ? table.note(data) : table.note;   // a note can depend on the data
+    if (note) card.append(el('p', note, 'muted'));
 
     const rows = table.rows(data);
     if (rows.length === 0) {
@@ -163,6 +173,73 @@ function drawTables(tables, data) {
   }
 }
 
+// ---------- The records behind the numbers ----------
+
+// Every report also receives the actual rows its numbers are counted from (data.records, built by
+// routes/reports.js). A page adds one of these tables at the end of its list, for example
+//     ...  records.loans((d) => d.records)
+// pick(d) says where in the answer the rows are, because the late-fines page has two sets.
+// The server sends only the newest rows, with the full count next to them (see recordNote).
+function recordNote(block) {
+  const shown = block.rows.length;
+  return shown < block.total
+    ? 'The actual records these numbers come from. Showing the newest ' + fmt.num(shown) + ' of ' + fmt.num(block.total) + '.'
+    : 'The actual records these numbers come from (' + fmt.num(block.total) + ' in all).';
+}
+const records = {
+  // Loans: the rows behind the borrowing, late-return and use numbers.
+  loans: (pick) => ({
+    title: 'Records behind these numbers: loans',
+    note: (d) => recordNote(pick(d)),
+    rows: (d) => pick(d).rows,
+    empty: 'No loans match these filters.',
+    columns: [
+      { head: 'Loan', value: (r) => r.loan_id, num: true },
+      { head: 'Title', value: (r) => r.title },
+      { head: 'Category', value: (r) => r.item_type },
+      { head: 'Member', value: (r) => r.username },
+      { head: 'Membership', value: (r) => r.member_type },
+      { head: 'Checked out', value: (r) => r.checkout_date },
+      { head: 'Due', value: (r) => r.due_date },
+      { head: 'Returned', value: (r) => fmt.text(r.return_date) },
+      { head: 'Status', value: (r) => r.state }
+    ]
+  }),
+  // Fines: the rows behind the fine numbers.
+  fines: (pick) => ({
+    title: 'Records behind these numbers: fines',
+    note: (d) => recordNote(pick(d)),
+    rows: (d) => pick(d).rows,
+    empty: 'No fines match these filters.',
+    columns: [
+      { head: 'Fine', value: (r) => r.fine_id, num: true },
+      { head: 'Loan', value: (r) => r.loan_id, num: true },
+      { head: 'Title', value: (r) => r.title },
+      { head: 'Member', value: (r) => r.username },
+      { head: 'Membership', value: (r) => r.member_type },
+      { head: 'Type', value: (r) => r.fine_type },
+      { head: 'Amount', value: (r) => fmt.money(r.amount), num: true },
+      { head: 'Assessed', value: (r) => r.date_assessed },
+      { head: 'Status', value: (r) => r.state }
+    ]
+  }),
+  // Holds: the rows behind the demand numbers.
+  holds: (pick) => ({
+    title: 'Records behind these numbers: holds',
+    note: (d) => recordNote(pick(d)),
+    rows: (d) => pick(d).rows,
+    empty: 'No holds match these filters.',
+    columns: [
+      { head: 'Hold', value: (r) => r.hold_id, num: true },
+      { head: 'Title', value: (r) => r.title },
+      { head: 'Category', value: (r) => r.item_type },
+      { head: 'Member', value: (r) => r.username },
+      { head: 'Placed', value: (r) => r.hold_date },
+      { head: 'Status', value: (r) => r.status }
+    ]
+  })
+};
+
 // ---------- The one function each page calls ----------
 
 // initReport(config): starts a report page.
@@ -188,6 +265,22 @@ async function initReport(config) {
   }
   const form = buildFilters(config, options);
 
+  // The parts of the page that only make sense once a report has been asked for.
+  const tilesBox = document.getElementById('tiles');
+  const tablesBox = document.getElementById('tables');
+  const chartBox = document.getElementById('chartArea');
+  const footnote = document.getElementById('reportFootnote');   // an optional note under the tiles (Trends page)
+
+  // hideReport(): empties and hides the numbers, the chart spot and the tables, and says what to do.
+  function hideReport() {
+    tilesBox.replaceChildren();
+    tablesBox.replaceChildren();
+    if (chartBox) chartBox.hidden = true;
+    if (footnote) footnote.hidden = true;
+    window.reportData = null;
+    say('Choose the dates and the filters above, then press Show report. Nothing is shown until you do.', false);
+  }
+
   // load(): asks the server for the report with the current filters and shows it.
   async function load() {
     say('Loading...', false);
@@ -196,6 +289,8 @@ async function initReport(config) {
       const data = await response.json();
       if (!response.ok) { say(data.message, true); return; }   // for example a bad date range
       say('', false);
+      if (chartBox) chartBox.hidden = false;
+      if (footnote) footnote.hidden = false;
       drawTiles(config.tiles, data.summary);
       drawTables(config.tables, data);
       // Hand the numbers to anyone who wants to draw a chart (see the top of this file).
@@ -206,7 +301,9 @@ async function initReport(config) {
     }
   }
 
-  // Pressing Apply (or Enter in a field) loads the report with the new filters.
+  // Pressing Show report loads the report. The browser has already refused the form if a date or a
+  // drop-down was left empty (they are all "required"), so a report is never shown by default.
   form.addEventListener('submit', (event) => { event.preventDefault(); load(); });
-  load();   // show the report as soon as the page opens
+  form.addEventListener('filters-cleared', hideReport);
+  hideReport();   // the page opens with no report: the person chooses the filters first
 }

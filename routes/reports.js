@@ -17,7 +17,7 @@
 //   memberType    Student, Faculty, ... (only the reports that look at members use it)
 //
 // Every report sends back JSON with the same shape:
-//   { filters, summary: {...numbers for the tiles...}, tables: {...rows...}, chart: { labels: [...], values: [...] } }
+//   { filters, records: {...the rows the numbers come from...}, summary: {...numbers for the tiles...}, tables: {...rows...}, chart: { labels: [...], values: [...] } }
 // "chart" is the one data series that suits that report best, ready to hand to a chart library.
 //
 // The numbers are worked out here with SQL (COUNT, SUM, AVG, GROUP BY), not just listed, so the
@@ -99,6 +99,78 @@ const LOAN_JOINS = `
     JOIN CatalogItem ci ON ci.Item_id = c.Item_id
     JOIN Member m       ON m.Member_id = l.Member_id
     JOIN MemberType mt  ON mt.Member_type_id = m.Member_type_id`;
+
+// ---------------------------------------------------------------------
+// The records behind the numbers
+// ---------------------------------------------------------------------
+// Each report also sends the actual rows its numbers are counted from (the loans, fines or holds that
+// match the filters), so whoever reads a report can check where a number comes from. Each page shows
+// them in a table under the summary. Only the newest RECORD_LIMIT rows are sent, with the full count
+// next to them, so a big library does not send thousands of rows to the browser.
+const RECORD_LIMIT = 300;
+
+// loanRecords(filters, useMemberType): the loans (one row each) that match the filters.
+// "state" says in plain words where the loan stands today.
+async function loanRecords(filters, useMemberType) {
+    const f = loanFilter(filters, useMemberType);
+    const [[count]] = await db.query(`SELECT COUNT(*) AS total ${LOAN_JOINS} ${f.where}`, f.values);
+    const [rows] = await db.query(
+        `SELECT l.Loan_id AS loan_id, ci.Title AS title, ci.Item_type AS item_type,
+                m.Username AS username, mt.Type_name AS member_type,
+                DATE_FORMAT(l.Checkout_date, '%Y-%m-%d') AS checkout_date,
+                DATE_FORMAT(l.Due_date, '%Y-%m-%d') AS due_date,
+                DATE_FORMAT(l.Return_date, '%Y-%m-%d') AS return_date,
+                CASE WHEN l.Return_date IS NULL THEN IF(l.Due_date < CURDATE(), 'Overdue', 'Out now')
+                     WHEN l.Return_date > l.Due_date THEN 'Returned late'
+                     ELSE 'Returned on time' END AS state
+         ${LOAN_JOINS} ${f.where}
+         ORDER BY l.Checkout_date DESC, l.Loan_id DESC
+         LIMIT ${RECORD_LIMIT}`, f.values);
+    return { total: Number(count.total), rows };
+}
+
+// fineRecords(filters): the fines (one row each) for the loans that match the filters.
+// "state" is Unpaid, Paid or Waived (a waived fine is saved as paid with Amount 0, see routes/fines.js).
+async function fineRecords(filters) {
+    const f = loanFilter(filters, true);
+    const FINE_JOINS = `
+         FROM Fine f
+         JOIN Loan l         ON l.Loan_id = f.Loan_id
+         JOIN Copy c         ON c.Copy_id = l.Copy_id
+         JOIN CatalogItem ci ON ci.Item_id = c.Item_id
+         JOIN Member m       ON m.Member_id = l.Member_id
+         JOIN MemberType mt  ON mt.Member_type_id = m.Member_type_id`;
+    const [[count]] = await db.query(`SELECT COUNT(*) AS total ${FINE_JOINS} ${f.where}`, f.values);
+    const [rows] = await db.query(
+        `SELECT f.Fine_id AS fine_id, l.Loan_id AS loan_id, ci.Title AS title, m.Username AS username,
+                mt.Type_name AS member_type, f.Fine_type AS fine_type, f.Amount AS amount,
+                DATE_FORMAT(f.Date_assessed, '%Y-%m-%d') AS date_assessed,
+                IF(f.Is_paid = TRUE, IF(f.Amount = 0, 'Waived', 'Paid'), 'Unpaid') AS state
+         ${FINE_JOINS} ${f.where}
+         ORDER BY f.Date_assessed DESC, f.Fine_id DESC
+         LIMIT ${RECORD_LIMIT}`, f.values);
+    return { total: Number(count.total), rows: rows.map(r => ({ ...r, amount: round2(r.amount) })) };
+}
+
+// holdRecords(filters): the holds (one row each) placed in the period, for the chosen item category.
+async function holdRecords(filters) {
+    const dates = dateConditions('h.Hold_date', filters);
+    const sql = [...dates.sql], values = [...dates.values];
+    if (filters.type) { sql.push('ci.Item_type = ?'); values.push(filters.type); }
+    const where = sql.length ? 'WHERE ' + sql.join(' AND ') : '';
+    const HOLD_JOINS = `
+         FROM Hold h
+         JOIN CatalogItem ci ON ci.Item_id = h.Item_id
+         JOIN Member m       ON m.Member_id = h.Member_id`;
+    const [[count]] = await db.query(`SELECT COUNT(*) AS total ${HOLD_JOINS} ${where}`, values);
+    const [rows] = await db.query(
+        `SELECT h.Hold_id AS hold_id, ci.Title AS title, ci.Item_type AS item_type, m.Username AS username,
+                DATE_FORMAT(h.Hold_date, '%Y-%m-%d') AS hold_date, h.Status AS status
+         ${HOLD_JOINS} ${where}
+         ORDER BY h.Hold_date DESC, h.Hold_id DESC
+         LIMIT ${RECORD_LIMIT}`, values);
+    return { total: Number(count.total), rows };
+}
 
 // pct(part, whole): a percentage rounded to one decimal, or null when there is nothing to divide by.
 function pct(part, whole) {
@@ -192,8 +264,11 @@ router.get('/trends', async (req, res) => {
         const last = filled.length ? filled[filled.length - 1] : null;
 
         const shares = rows => rows.map(r => ({ ...r, loans: Number(r.loans), share_pct: pct(Number(r.loans), totalLoans) }));
+        // The rows the numbers above are counted from (shown in a table on the report page).
+        const records = await loanRecords(filters, true);
         res.json({
             filters,
+            records,
             summary: {
                 total_loans: totalLoans,
                 borrowers: Number(totals.borrowers),
@@ -286,8 +361,11 @@ router.get('/collection', async (req, res) => {
         const totalCirculating = byType.reduce((n, r) => n + r.circulating, 0);
         const totalLoans = byType.reduce((n, r) => n + r.loans, 0);
         const titlesOwned = rated.length;
+        // The rows the numbers above are counted from (shown in a table on the report page).
+        const records = await loanRecords(filters, false);
         res.json({
             filters,
+            records,
             summary: {
                 titles: titlesOwned,
                 circulating_copies: totalCirculating,
@@ -385,8 +463,11 @@ router.get('/late-fines', async (req, res) => {
         const [[days]] = await db.query(
             `SELECT AVG(CASE WHEN l.Return_date > l.Due_date THEN DATEDIFF(l.Return_date, l.Due_date) END) AS avg_days_late
              ${LOAN_JOINS} ${f.where}`, f.values);
+        // The rows the numbers above are counted from (shown in a table on the report page).
+        const records = { loans: await loanRecords(filters, true), fines: await fineRecords(filters) };
         res.json({
             filters,
+            records,
             summary: {
                 returned: total.returned, late_returns: total.late,
                 late_rate_pct: pct(total.late, total.returned),
@@ -465,8 +546,11 @@ router.get('/demand', async (req, res) => {
         }).sort((a, b) => (b.holds_per_copy ?? 99) - (a.holds_per_copy ?? 99) || b.holds_in_period - a.holds_in_period);
 
         const totalHolds = outcomes.reduce((n, o) => n + o.holds, 0);
+        // The rows the numbers above are counted from (shown in a table on the report page).
+        const records = await holdRecords(filters);
         res.json({
             filters,
+            records,
             summary: {
                 holds: totalHolds,
                 open_holds: count('Active') + count('Ready'),

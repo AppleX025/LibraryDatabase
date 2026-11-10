@@ -589,3 +589,22 @@ td .confirm-box button {
 #loanList td select { width: auto; margin: 0 4px 6px 0; }   /* the condition drop-down sits next to its button */
 .nowrap { white-space: nowrap; }
 .late-mark { color: #8f2222; font-size: 13px; font-weight: 600; }
+
+/* ---------- Home page: "Your notices" for a logged-in member (public/home-notices.js) ---------- */
+.notices { margin: 8px 0 28px; }
+.notices-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.notices-top h2 { margin: 0; }
+.notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  margin-top: 12px; padding: 12px 14px;
+  border: 1px solid var(--line); border-left-width: 6px; border-radius: 10px; background: #fff;
+}
+.notice-warn { border-left-color: #b3261e; background: #fdf3f2; }   /* overdue / fine: red */
+.notice-info { border-left-color: var(--accent); background: #fff9e8; }   /* due soon: amber */
+.notice-good { border-left-color: #1c7a43; background: #f1faf4; }   /* hold ready, fine paid: green */
+.notice-text { display: flex; flex-direction: column; gap: 4px; flex: 1 1 320px; }
+.notice-badge { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.notice-message { font-size: 16px; line-height: 1.4; }
+.notice-date { font-size: 12px; color: var(--muted); }
+.notice-actions { display: flex; align-items: center; gap: 12px; }
+.notices-links { margin: 16px 0 0; display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 14px; }

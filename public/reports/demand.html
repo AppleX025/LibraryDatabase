@@ -82,7 +82,9 @@
                     { head: 'Holds in period', value: (r) => fmt.num(r.holds_in_period), num: true },
                     { head: 'Loans in period', value: (r) => fmt.num(r.loans_in_period), num: true },
                     { head: 'Suggested action', value: (r) => r.action }
-                  ] }
+                  ] },
+                // The actual rows the numbers above are counted from (see reports.js)
+                records.holds((d) => d.records)
             ]
         });
     </script>

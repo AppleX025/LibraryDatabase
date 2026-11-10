@@ -62,6 +62,10 @@
     <!-- Tiles for a logged-in visitor (My Loans, My Holds ...). auth-nav.js fills them and shows them. -->
     <div class="shortcuts" id="shortcuts" hidden></div>
 
+    <!-- A logged-in member's unread notices (overdue items, fines, ready holds). public/home-notices.js
+         fills it and shows it; for staff and visitors who are not logged in it stays hidden. -->
+    <section class="panel notices" id="notices" hidden aria-label="Your notices"></section>
+
     <section class="panel">
       <h2>Results</h2>
       <!-- One card per item is added here by search() -->
@@ -257,6 +261,8 @@
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
     search();
   </script>
+  <!-- The member's unread notices on the home page (must load before auth-nav.js, which calls it) -->
+  <script src="/home-notices.js"></script>
   <script src="/auth-nav.js"></script>
 </body>
 </html>

@@ -210,6 +210,13 @@ function drawShortcuts(me) {
   const spot = document.getElementById('shortcuts');
   if (!spot || !me.loggedIn) return;
 
+  // A member's home page shows their unread notices (overdue items, fines, ready holds) in this place
+  // instead of the buttons, so they do not have to open the Notifications page (public/home-notices.js).
+  if (!me.isStaff && document.getElementById('notices') && typeof drawNotices === 'function') {
+    drawNotices();
+    return;
+  }
+
   for (const [title, line, address] of shortcutTiles(me)) {
     const a = document.createElement('a');
     a.href = address;

@@ -94,7 +94,7 @@ function renderExtras(values = {}) {
   $('authorPicker').hidden=!['book','researchpaper'].includes(type);
 }
 function newItem() {
-  currentId=null; picking=false; $('findBox').hidden=true; $('itemForm').hidden=false; $('itemForm').reset(); $('itemType').disabled=false; $('itemHeading').textContent='Add catalog item';
+  currentId=null; picking=false; $('findBox').hidden=true; $('itemForm').hidden=false; $('itemForm').reset(); $('itemType').disabled=false; $('itemHeading').textContent='Add catalog item'; $('fillExample').hidden=false;
   [...$('authorSelect').options].forEach(o=>o.selected=false);renderExtras();$('copiesPanel').hidden=true;showTab('item');
 }
 function fillForm(form, values) {
@@ -103,9 +103,16 @@ function fillForm(form, values) {
     if (control.type==='checkbox') control.checked=!!value;else control.value=value==null?'':value;
   }
 }
+// fillExample(): puts only the example title in the Add item form ("The Lord of the Rings"), so a demo
+// starts with the name already there and the team fills in the rest of the data entry live (category,
+// publisher, year, cost and the category details). It only fills the form: nothing is saved until Save item is pressed.
+function fillExample() {
+  fillForm($('itemForm'),{Title:'The Lord of the Rings'});
+  $('itemForm').elements.namedItem('Title').focus();
+}
 async function editItem(id) {
   try {
-    const item=await api('/items/'+id); currentId=id; picking=false; $('findBox').hidden=true; $('itemForm').reset();
+    const item=await api('/items/'+id); currentId=id; picking=false; $('findBox').hidden=true; $('fillExample').hidden=true; $('itemForm').reset();
     fillForm($('itemForm'),item); $('itemType').disabled=true; renderExtras(item);
     [...$('authorSelect').options].forEach(o=>o.selected=item.Author_ids.includes(Number(o.value)));
     $('itemHeading').textContent=canEdit?`Edit item #${id}`:`Copies of "${item.Title}"`; $('copiesPanel').hidden=false; renderCopies(item.copies); $('dateAcquired').value=new Date().toISOString().slice(0,10);
@@ -156,6 +163,7 @@ async function withdraw(id, button) {
   try { const r=await api(`/copies/${id}/withdraw`,{method:'PATCH'});await Promise.all([editItem(currentId),loadCatalog()]);notify(r.message); }catch(e){notify(e.message,true);}
 }
 $('itemType').addEventListener('change',()=>renderExtras());
+$('fillExample').addEventListener('click',fillExample);
 $('itemForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const f=$('itemForm');const values=Object.fromEntries(new FormData(f));

@@ -92,7 +92,9 @@
                     { head: 'Title', value: (r) => r.title },
                     { head: 'Category', value: (r) => r.item_type },
                     { head: 'Copies', value: (r) => fmt.num(r.copies), num: true }
-                  ] }
+                  ] },
+                // The actual rows the numbers above are counted from (see reports.js)
+                records.loans((d) => d.records)
             ]
         });
     </script>

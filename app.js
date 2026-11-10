@@ -23,6 +23,8 @@ const { createSession } = require('./lib/session');  // remembers who is logged 
 const db = require('./config/db');                   // the MySQL connection pool
 // Marks Ready holds as Expired after their 2-day pickup window (lib/holdExpiry.js)
 const { expireHolds } = require('./lib/holdExpiry');
+// Starts the overdue fine the day an item becomes overdue and raises it each day (lib/overdueFines.js)
+const { accrueOverdueFines } = require('./lib/overdueFines');
 
 // Safety nets: if something fails and nobody catches it, print the reason
 // in the terminal instead of the app quietly closing.
@@ -61,14 +63,19 @@ try {
 }
 app.use(sessionStep);
 
-// Before any /api request is answered, expire the Ready holds whose pickup window is over,
-// so My Holds, Search, Staff Holds and Checkout always see up-to-date holds.
+// Before any /api request is answered, expire the Ready holds whose pickup window is over
+// and add or raise the overdue fines (and so their notices), so My Holds, Search, Staff Holds and Checkout always see up-to-date holds.
 // If this check fails we only print the reason: the person's real request must still work.
 app.use('/api', async (req, res, next) => {
   try {
     await expireHolds();   // does nothing if it already ran in the last minute
   } catch (err) {
     console.error('Hold expiry check failed:', err);
+  }
+  try {
+    await accrueOverdueFines();   // does nothing if it already ran in the last minute
+  } catch (err) {
+    console.error('Overdue fine check failed:', err);
   }
   next();                  // always pass the request on to the next step
 });

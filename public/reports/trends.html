@@ -42,7 +42,7 @@
 
         <!-- The numbers that matter most, one box each -->
         <div id="tiles" class="tiles"></div>
-        <p class="muted">The newest month may still be in progress, so its numbers can look low.</p>
+        <p class="muted" id="reportFootnote" hidden>The newest month may still be in progress, so its numbers can look low.</p>
 
         <!-- CHART SPOT: the chart is drawn here from the "report-loaded" event
              (see the comment at the top of reports.js). -->
@@ -89,7 +89,9 @@
                     { head: 'Loans', value: (r) => fmt.num(r.loans), num: true },
                     { head: 'Borrowers', value: (r) => fmt.num(r.borrowers), num: true },
                     { head: 'Share of all loans', value: (r) => fmt.pct(r.share_pct), num: true }
-                  ] }
+                  ] },
+                // The actual rows the numbers above are counted from (see reports.js)
+                records.loans((d) => d.records)
             ]
         });
     </script>

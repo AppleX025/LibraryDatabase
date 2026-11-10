@@ -38,11 +38,11 @@ BEGIN
         -- A fine belongs to a loan, and a loan belongs to a member.
         SELECT Member_id INTO the_member_id FROM Loan WHERE Loan_id = NEW.Loan_id;
 
-        -- (1) The "you have a fine" notice is out of date now: mark it read.
+        -- (1) The "you have a fine" notice (still-out 'overdue' or returned 'fine_assessed') is out of date now: mark it read.
         UPDATE Notification
            SET Is_read = TRUE
          WHERE Fine_id = NEW.Fine_id
-           AND Notification_type = 'fine_assessed';
+           AND Notification_type IN ('fine_assessed', 'overdue');
 
         -- (2) Tell the member how it ended. Waived fines have Amount = 0.
         IF NEW.Amount = 0 THEN

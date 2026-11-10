@@ -118,7 +118,10 @@
                     { head: 'Late returns', value: (r) => fmt.num(r.late_returns), num: true },
                     { head: 'Overdue now', value: (r) => fmt.num(r.overdue_now), num: true },
                     { head: 'Owes', value: (r) => fmt.money(r.owes), num: true }
-                  ] }
+                  ] },
+                // The actual rows the numbers above are counted from (see reports.js)
+                records.loans((d) => d.records.loans),
+                records.fines((d) => d.records.fines)
             ]
         });
     </script>
